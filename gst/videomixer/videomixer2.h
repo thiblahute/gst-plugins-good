@@ -23,9 +23,9 @@
 
 #include <gst/gst.h>
 #include <gst/video/video.h>
+#include "basemixer/gstbasemixer.h"
 
 #include "blend.h"
-#include <gst/base/gstcollectpads.h>
 
 G_BEGIN_DECLS
 
@@ -43,7 +43,7 @@ typedef struct _GstVideoMixer2 GstVideoMixer2;
 typedef struct _GstVideoMixer2Class GstVideoMixer2Class;
 
 /**
- * GstVideoMixer2Background:
+ * Gstvideomixer2Background:
  * @VIDEO_MIXER2_BACKGROUND_CHECKER: checker pattern background
  * @VIDEO_MIXER2_BACKGROUND_BLACK: solid color black background
  * @VIDEO_MIXER2_BACKGROUND_WHITE: solid color white background
@@ -67,61 +67,17 @@ GstVideoMixer2Background;
  */
 struct _GstVideoMixer2
 {
-  GstElement element;
-
-  /* < private > */
-
-  /* pad */
-  GstPad *srcpad;
-
-  /* Lock to prevent the state to change while blending */
-  GMutex lock;
-
-  /* Lock to prevent two src setcaps from happening at the same time  */
-  GMutex setcaps_lock;
-
-  /* Sink pads using Collect Pads 2*/
-  GstCollectPads *collect;
-
-  /* sinkpads, a GSList of GstVideoMixer2Pads */
-  GSList *sinkpads;
-  gint numpads;
-  /* Next available sinkpad index */
-  guint next_sinkpad;
-
-  /* Output caps */
-  GstVideoInfo info;
-
-  /* current caps */
-  GstCaps *current_caps;
-  gboolean send_caps;
-
-  gboolean newseg_pending;
-
+  GstBasemixer basemixer;
   GstVideoMixer2Background background;
-
-  /* Current downstream segment */
-  GstSegment segment;
-  GstClockTime ts_offset;
-  guint64 nframes;
-
-  /* QoS stuff */
-  gdouble proportion;
-  GstClockTime earliest_time;
-  guint64 qos_processed, qos_dropped;
 
   BlendFunction blend, overlay;
   FillCheckerFunction fill_checker;
   FillColorFunction fill_color;
-
-  gboolean send_stream_start;
-
-  GstTagList *pending_tags;
 };
 
 struct _GstVideoMixer2Class
 {
-  GstElementClass parent_class;
+  GstBasemixerClass parent_class;
 };
 
 GType gst_videomixer2_get_type (void);

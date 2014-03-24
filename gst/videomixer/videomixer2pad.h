@@ -26,57 +26,39 @@
 
 #include <gst/base/gstcollectpads.h>
 
-#include "videoconvert.h"
-
 G_BEGIN_DECLS
 
 #define GST_TYPE_VIDEO_MIXER2_PAD (gst_videomixer2_pad_get_type())
 #define GST_VIDEO_MIXER2_PAD(obj) \
-        (G_TYPE_CHECK_INSTANCE_CAST((obj),GST_TYPE_VIDEO_MIXER2_PAD, GstVideoMixer2Pad))
+        (G_TYPE_CHECK_INSTANCE_CAST((obj),GST_TYPE_VIDEO_MIXER2_PAD, GstVideomixer2Pad))
 #define GST_VIDEO_MIXER2_PAD_CLASS(klass) \
-        (G_TYPE_CHECK_CLASS_CAST((klass),GST_TYPE_VIDEO_MIXER_PAD, GstVideoMixer2PadClass))
+        (G_TYPE_CHECK_CLASS_CAST((klass),GST_TYPE_VIDEO_MIXER_PAD, GstVideomixer2PadClass))
 #define GST_IS_VIDEO_MIXER2_PAD(obj) \
         (G_TYPE_CHECK_INSTANCE_TYPE((obj),GST_TYPE_VIDEO_MIXER2_PAD))
 #define GST_IS_VIDEO_MIXER2_PAD_CLASS(klass) \
         (G_TYPE_CHECK_CLASS_TYPE((klass),GST_TYPE_VIDEO_MIXER2_PAD))
 
-typedef struct _GstVideoMixer2Pad GstVideoMixer2Pad;
-typedef struct _GstVideoMixer2PadClass GstVideoMixer2PadClass;
-typedef struct _GstVideoMixer2Collect GstVideoMixer2Collect;
+typedef struct _GstVideomixer2Pad GstVideomixer2Pad;
+typedef struct _GstVideomixer2PadClass GstVideomixer2PadClass;
 
 /**
- * GstVideoMixer2Pad:
+ * GstVideomixer2Pad:
  *
- * The opaque #GstVideoMixer2Pad structure.
+ * The opaque #GstVideomixer2Pad structure.
  */
-struct _GstVideoMixer2Pad
+struct _GstVideomixer2Pad
 {
-  GstPad parent;
-
-  /* < private > */
-
-  /* caps */
-  GstVideoInfo info;
+  GstBasemixerPad parent;
 
   /* properties */
   gint xpos, ypos;
   guint zorder;
   gdouble alpha;
-
-  GstVideoMixer2Collect *mixcol;
-
-  /* caps used for conversion if needed */
-  GstVideoInfo conversion_info;
-
-  /* Converter, if NULL no conversion is done */
-  VideoConvert *convert;
-
-  gboolean need_conversion_update;
 };
 
-struct _GstVideoMixer2PadClass
+struct _GstVideomixer2PadClass
 {
-  GstPadClass parent_class;
+  GstBasemixerPadClass parent_class;
 };
 
 GType gst_videomixer2_pad_get_type (void);

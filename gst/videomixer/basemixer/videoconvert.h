@@ -20,12 +20,12 @@
 #ifndef __COLORSPACE_H__
 #define __COLORSPACE_H__
 
+typedef struct _VideoConvert VideoConvert;
+
 #include <gst/video/video.h>
 #include "gstcms.h"
 
 G_BEGIN_DECLS
-
-typedef struct _VideoConvert VideoConvert;
 
 typedef enum {
   DITHER_NONE,
@@ -65,13 +65,13 @@ struct _VideoConvert {
 
 };
 
-VideoConvert *   videomixer_videoconvert_convert_new            (GstVideoInfo *in_info,
+VideoConvert *   videoconvert_convert_new            (GstVideoInfo *in_info,
                                                       GstVideoInfo *out_info);
-void             videomixer_videoconvert_convert_free           (VideoConvert * convert);
+void             videoconvert_convert_free           (VideoConvert * convert);
 
-void             videomixer_videoconvert_convert_set_dither     (VideoConvert * convert, int type);
+void             videoconvert_convert_set_dither     (VideoConvert * convert, int type);
 
-void             videomixer_videoconvert_convert_convert        (VideoConvert * convert,
+void             videoconvert_convert_convert        (VideoConvert * convert,
                                                       GstVideoFrame *dest, const GstVideoFrame *src);
 
 
