@@ -257,18 +257,6 @@ gst_videomixer2_set_property (GObject * object,
 #define gst_videomixer2_parent_class parent_class
 G_DEFINE_TYPE (GstVideoMixer2, gst_videomixer2, GST_TYPE_BASE_MIXER);
 
-static GstBasemixerPad *
-gst_videomixer2_create_new_pad (GstBasemixer * basemixer,
-    GstPadTemplate * templ, const gchar * name, const GstCaps * caps)
-{
-  GstVideomixer2Pad *new_pad;
-
-  new_pad = g_object_new (GST_TYPE_VIDEO_MIXER2_PAD, "name", name, "direction",
-      templ->direction, "template", templ, NULL);
-
-  return GST_BASE_MIXER_PAD (new_pad);
-}
-
 static gboolean
 set_functions (GstVideoMixer2 * mix, GstVideoInfo * info)
 {
@@ -549,11 +537,12 @@ gst_videomixer2_class_init (GstVideoMixer2Class * klass)
   GObjectClass *gobject_class = (GObjectClass *) klass;
   GstElementClass *gstelement_class = (GstElementClass *) klass;
   GstBasemixerClass *basemixer_class = (GstBasemixerClass *) klass;
+  GstBaseAggregatorClass *agg_class = (GstBaseAggregatorClass *) klass;
 
   gobject_class->get_property = gst_videomixer2_get_property;
   gobject_class->set_property = gst_videomixer2_set_property;
 
-  basemixer_class->create_new_pad = gst_videomixer2_create_new_pad;
+  agg_class->sinkpads_type = GST_TYPE_VIDEO_MIXER2_PAD;
   basemixer_class->modify_src_pad_info = gst_videomixer2_modify_src_pad_info;
   basemixer_class->mix_frames = gst_videomixer2_mix_frames;
 

@@ -1399,7 +1399,7 @@ gst_basemixer_src_query (GstBaseAggregator * agg, GstQuery * query)
       res = gst_basemixer_query_latency (mix, query);
       break;
     case GST_QUERY_CAPS:
-      res = GST_BASE_AGGREGATOR_CLASS(parent_class)->src_query (agg, query);
+      res = GST_BASE_AGGREGATOR_CLASS (parent_class)->src_query (agg, query);
       break;
     default:
       /* FIXME, needs a custom query handler because we have multiple
@@ -1489,7 +1489,7 @@ gst_basemixer_src_event (GstBaseAggregator * agg, GstEvent * event)
 
       gst_basemixer_reset_qos (mix);
 
-      result = GST_BASE_AGGREGATOR_CLASS(parent_class)->src_event(agg, event);
+      result = GST_BASE_AGGREGATOR_CLASS (parent_class)->src_event (agg, event);
       break;
     }
     case GST_EVENT_NAVIGATION:
@@ -1679,7 +1679,7 @@ forward_event_func (GValue * item, GValue * ret, GstEvent * event)
 {
   GstPad *pad = g_value_get_object (item);
   gst_event_ref (event);
-  GST_LOG_OBJECT (pad, "About to send event %s", GST_EVENT_TYPE_NAME (event));
+  GST_ERROR_OBJECT (pad, "About to send event %s", GST_EVENT_TYPE_NAME (event));
   if (!gst_pad_push_event (pad, event)) {
     g_value_set_boolean (ret, FALSE);
     GST_WARNING_OBJECT (pad, "Sending event  %p (%s) failed.",
@@ -1752,53 +1752,27 @@ gst_basemixer_request_new_pad (GstElement * element,
 {
   GstBasemixer *mix;
   GstBasemixerPad *mixpad;
-  GstElementClass *klass = GST_ELEMENT_GET_CLASS (element);
-  GstBasemixerClass *mixer_klass = (GstBasemixerClass *) klass;
 
   mix = GST_BASE_MIXER (element);
 
-  if (templ == gst_element_class_get_pad_template (klass, "sink_%u")) {
-    guint serial = 0;
-    gchar *name = NULL;
+  mixpad = (GstBasemixerPad *)
+      GST_ELEMENT_CLASS (parent_class)->request_new_pad (element, templ,
+      req_name, caps);
 
-    GST_BASE_MIXER_LOCK (mix);
-    if (req_name == NULL || strlen (req_name) < 6
-        || !g_str_has_prefix (req_name, "sink_")) {
-      /* no name given when requesting the pad, use next available int */
-      serial = mix->next_sinkpad++;
-    } else {
-      /* parse serial number from requested padname */
-      serial = g_ascii_strtoull (&req_name[5], NULL, 10);
-      if (serial >= mix->next_sinkpad)
-        mix->next_sinkpad = serial + 1;
-    }
-    /* create new pad with the name */
-    name = g_strdup_printf ("sink_%u", serial);
-    if (mixer_klass->create_new_pad)
-      mixpad = mixer_klass->create_new_pad (mix, templ, name, caps);
-    else
-      mixpad = g_object_new (GST_TYPE_BASE_MIXER_PAD, "name", name, "direction",
-          templ->direction, "template", templ, NULL);
-    g_free (name);
-
-    mixpad->zorder = mix->numpads;
-
-    mixpad->start_time = -1;
-    mixpad->end_time = -1;
-
-    /* Keep an internal list of mixpads for zordering */
-    mix->sinkpads = g_slist_insert_sorted (mix->sinkpads, mixpad,
-        (GCompareFunc) pad_zorder_compare);
-    mix->numpads++;
-    GST_BASE_MIXER_UNLOCK (mix);
-  } else {
+  if (mixpad == NULL)
     return NULL;
-  }
+  mixpad->zorder = mix->numpads;
 
-  GST_DEBUG_OBJECT (element, "Adding pad %s", GST_PAD_NAME (mixpad));
+  mixpad->start_time = -1;
+  mixpad->end_time = -1;
 
-  /* add the pad to the element */
-  gst_element_add_pad (element, GST_PAD (mixpad));
+  /* Keep an internal list of mixpads for zordering */
+  GST_BASE_MIXER_LOCK (mix);
+  mix->sinkpads = g_slist_insert_sorted (mix->sinkpads, mixpad,
+      (GCompareFunc) pad_zorder_compare);
+  mix->numpads++;
+  GST_BASE_MIXER_UNLOCK (mix);
+
   gst_child_proxy_child_added (GST_CHILD_PROXY (mix), G_OBJECT (mixpad),
       GST_OBJECT_NAME (mixpad));
 
@@ -1973,7 +1947,7 @@ gst_basemixer_class_init (GstBasemixerClass * klass)
       "Mix multiple video streams", "Wim Taymans <wim@fluendo.com>, "
       "Sebastian Dröge <sebastian.droege@collabora.co.uk>");
 
-  klass->create_new_pad = NULL;
+  agg_class->sinkpads_type = GST_TYPE_BASE_MIXER_PAD;
   agg_class->pad_query = gst_basemixer_sink_query;
   agg_class->pad_event = gst_basemixer_sink_event;
   agg_class->flush = gst_basemixer_flush;
