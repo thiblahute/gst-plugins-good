@@ -976,52 +976,39 @@ GST_END_TEST;
 GST_START_TEST (test_flush_start_flush_stop)
 {
   GstPadTemplate *sink_template;
-  GstPad *tmppad, *sinkpad1, *sinkpad2, *videomixer_src;
-  GstElement *pipeline, *src1, *src2, *videomixer, *sink;
+  GstPad *sinkpad1, *sinkpad2, *videomixer_src;
+  GstElement *videomixer;
 
   GST_INFO ("preparing test");
 
   /* build pipeline */
-  pipeline = gst_pipeline_new ("pipeline");
-  src1 = gst_element_factory_make ("videotestsrc", "src1");
-  src2 = gst_element_factory_make ("videotestsrc", "src2");
   videomixer = gst_element_factory_make ("videomixer", "videomixer");
-  sink = gst_element_factory_make ("fakesink", "sink");
-  gst_bin_add_many (GST_BIN (pipeline), src1, src2, videomixer, sink, NULL);
 
   sink_template =
       gst_element_class_get_pad_template (GST_ELEMENT_GET_CLASS (videomixer),
       "sink_%u");
   fail_unless (GST_IS_PAD_TEMPLATE (sink_template));
   sinkpad1 = gst_element_request_pad (videomixer, sink_template, NULL, NULL);
-  tmppad = gst_element_get_static_pad (src1, "src");
-  gst_pad_link (tmppad, sinkpad1);
-  gst_object_unref (tmppad);
-
   sinkpad2 = gst_element_request_pad (videomixer, sink_template, NULL, NULL);
-  tmppad = gst_element_get_static_pad (src2, "src");
-  gst_pad_link (tmppad, sinkpad2);
-  gst_object_unref (tmppad);
+  gst_object_unref (sinkpad2);
 
-  gst_element_link (videomixer, sink);
-
-  gst_element_set_state (pipeline, GST_STATE_PLAYING);
-  fail_unless (gst_element_get_state (pipeline, NULL, NULL,
+  gst_element_set_state (videomixer, GST_STATE_PLAYING);
+  fail_unless (gst_element_get_state (videomixer, NULL, NULL,
           GST_CLOCK_TIME_NONE) == GST_STATE_CHANGE_SUCCESS);
 
   videomixer_src = gst_element_get_static_pad (videomixer, "src");
   fail_if (GST_PAD_IS_FLUSHING (videomixer_src));
   gst_pad_send_event (sinkpad1, gst_event_new_flush_start ());
-  fail_unless (GST_PAD_IS_FLUSHING (videomixer_src));
+  fail_if (GST_PAD_IS_FLUSHING (videomixer_src));
+  fail_unless (GST_PAD_IS_FLUSHING (sinkpad1));
   gst_pad_send_event (sinkpad1, gst_event_new_flush_stop (TRUE));
   fail_if (GST_PAD_IS_FLUSHING (videomixer_src));
+  fail_if (GST_PAD_IS_FLUSHING (sinkpad1));
   gst_object_unref (videomixer_src);
 
   /* cleanup */
-  gst_element_set_state (pipeline, GST_STATE_NULL);
-  gst_object_unref (sinkpad1);
-  gst_object_unref (sinkpad2);
-  gst_object_unref (pipeline);
+  gst_element_set_state (videomixer, GST_STATE_NULL);
+  gst_object_unref (videomixer);
 }
 
 GST_END_TEST;
