@@ -761,7 +761,7 @@ gst_basemixer_fill_queues (GstBasemixer * mix,
 
     bpad = GST_BASE_AGGREGATOR_PAD (pad);
     segment = &bpad->segment;
-    buf = bpad->buffer;
+    buf = gst_base_aggregator_pad_get_buffer (bpad);
     if (buf) {
       GstClockTime start_time, end_time;
 
@@ -809,9 +809,11 @@ gst_basemixer_fill_queues (GstBasemixer * mix,
       /* Check if it's inside the segment */
       if (start_time >= segment->stop || end_time < segment->start) {
         GST_ERROR_OBJECT (pad,
-            "Buffer outside the segment : %lld %lld %lld %lld",
-            (long long int) start_time, (long long int) end_time,
-            (long long int) segment->start, (long long int) segment->stop);
+            "Buffer outside the segment : segment: [%" GST_TIME_FORMAT " -- %"
+            GST_TIME_FORMAT "]" " Buffer [%" GST_TIME_FORMAT " -- %"
+            GST_TIME_FORMAT "]", GST_TIME_ARGS (segment->stop),
+            GST_TIME_ARGS (segment->start), GST_TIME_ARGS (start_time),
+            GST_TIME_ARGS (end_time));
 
         if (buf == pad->queued) {
           gst_buffer_unref (buf);
@@ -1060,7 +1062,7 @@ gst_basemixer_aggregate (GstBaseAggregator * agg)
   gint res;
   gint64 jitter;
 
-  GST_ERROR ("aggregated");
+  GST_ERROR ("aggregating");
 
   /* If we're not negotiated yet... */
   if (GST_VIDEO_INFO_FORMAT (&mix->info) == GST_VIDEO_FORMAT_UNKNOWN)
