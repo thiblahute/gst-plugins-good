@@ -1062,8 +1062,6 @@ gst_basemixer_aggregate (GstBaseAggregator * agg)
   gint res;
   gint64 jitter;
 
-  GST_ERROR ("aggregating");
-
   /* If we're not negotiated yet... */
   if (GST_VIDEO_INFO_FORMAT (&mix->info) == GST_VIDEO_FORMAT_UNKNOWN)
     return GST_FLOW_NOT_NEGOTIATED;
@@ -1090,11 +1088,10 @@ gst_basemixer_aggregate (GstBaseAggregator * agg)
     mix->send_caps = FALSE;
   }
 
-  GST_ERROR ("locking mixer");
   GST_BASE_MIXER_LOCK (mix);
 
   if (mix->newseg_pending) {
-    GST_DEBUG_OBJECT (mix, "Sending NEWSEGMENT event");
+    GST_ERROR_OBJECT (mix, "Sending NEWSEGMENT event");
     GST_BASE_MIXER_UNLOCK (mix);
     if (!gst_pad_push_event (agg->srcpad,
             gst_event_new_segment (&mix->segment))) {
@@ -1126,7 +1123,6 @@ gst_basemixer_aggregate (GstBaseAggregator * agg)
     }
   }
 
-  GST_ERROR ("maybe pushing tags");
   if (G_UNLIKELY (mix->pending_tags)) {
     gst_pad_push_event (agg->srcpad, gst_event_new_tag (mix->pending_tags));
     mix->pending_tags = NULL;
@@ -1135,7 +1131,6 @@ gst_basemixer_aggregate (GstBaseAggregator * agg)
   if (mix->segment.stop != -1)
     output_end_time = MIN (output_end_time, mix->segment.stop);
 
-  GST_ERROR ("filling queues");
   res = gst_basemixer_fill_queues (mix, output_start_time, output_end_time);
 
   if (res == 0) {
@@ -1154,7 +1149,6 @@ gst_basemixer_aggregate (GstBaseAggregator * agg)
     goto done;
   }
 
-  GST_ERROR ("doing qos");
   jitter = gst_basemixer_do_qos (mix, output_start_time);
   if (jitter <= 0) {
     ret =
