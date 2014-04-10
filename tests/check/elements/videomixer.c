@@ -646,12 +646,24 @@ GST_END_TEST;
 
 
 static GstBuffer *handoff_buffer = NULL;
+
+static gboolean
+_quit (GMainLoop * ml)
+{
+  g_main_loop_quit (ml);
+
+  return G_SOURCE_REMOVE;
+}
+
 static void
 handoff_buffer_cb (GstElement * fakesink, GstBuffer * buffer, GstPad * pad,
     gpointer user_data)
 {
   GST_DEBUG ("got buffer %p", buffer);
   gst_buffer_replace (&handoff_buffer, buffer);
+
+  if (main_loop)
+    g_idle_add ((GSourceFunc) _quit, main_loop);
 }
 
 /* check if clipping works as expected */
@@ -667,8 +679,12 @@ GST_START_TEST (test_clip)
   GstEvent *event;
   GstBuffer *buffer;
   GstCaps *caps;
+  GMainLoop *local_mainloop;
 
   GST_INFO ("preparing test");
+
+  local_mainloop = g_main_loop_new (NULL, FALSE);
+  main_loop = NULL;
 
   /* build pipeline */
   bin = gst_pipeline_new ("pipeline");
@@ -727,9 +743,11 @@ GST_START_TEST (test_clip)
   GST_BUFFER_TIMESTAMP (buffer) = 900 * GST_MSECOND;
   GST_BUFFER_DURATION (buffer) = 250 * GST_MSECOND;
   GST_DEBUG ("pushing buffer %p", buffer);
+
+  main_loop = local_mainloop;
   ret = gst_pad_chain (sinkpad, buffer);
   ck_assert_int_eq (ret, GST_FLOW_OK);
-  fail_unless (handoff_buffer != NULL);
+  g_main_loop_run (main_loop);
   gst_buffer_replace (&handoff_buffer, NULL);
 
   /* should not be clipped */
@@ -738,6 +756,8 @@ GST_START_TEST (test_clip)
   GST_BUFFER_DURATION (buffer) = 250 * GST_MSECOND;
   GST_DEBUG ("pushing buffer %p", buffer);
   ret = gst_pad_chain (sinkpad, buffer);
+  g_main_loop_run (main_loop);
+  main_loop = NULL;
   ck_assert_int_eq (ret, GST_FLOW_OK);
   fail_unless (handoff_buffer != NULL);
   gst_buffer_replace (&handoff_buffer, NULL);
@@ -753,6 +773,7 @@ GST_START_TEST (test_clip)
 
   gst_object_unref (sinkpad);
   gst_element_set_state (bin, GST_STATE_NULL);
+  g_main_loop_unref (local_mainloop);
   gst_bus_remove_signal_watch (bus);
   gst_object_unref (bus);
   gst_object_unref (bin);
