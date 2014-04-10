@@ -1114,10 +1114,10 @@ gst_basemixer_aggregate (GstBaseAggregator * agg)
 
   if (output_end_time >= mix->segment.stop) {
     GST_DEBUG_OBJECT (mix, "Segment done");
-    GST_BASE_MIXER_UNLOCK (mix);
-    if (!(mix->segment.flags & GST_SEGMENT_FLAG_SEGMENT)) {
-      gst_pad_push_event (agg->srcpad, gst_event_new_eos ());
 
+    if (!(mix->segment.flags & GST_SEGMENT_FLAG_SEGMENT)) {
+      GST_BASE_MIXER_UNLOCK (mix);
+      gst_pad_push_event (agg->srcpad, gst_event_new_eos ());
       ret = GST_FLOW_EOS;
       goto done_unlocked;
     }
@@ -1638,7 +1638,9 @@ gst_basemixer_sink_event (GstBaseAggregator * agg, GstBaseAggregatorPad * bpad,
       mix->newseg_pending = TRUE;
 
       gst_basemixer_reset_qos (mix);
+      GST_BASE_MIXER_LOCK (mix);
       gst_buffer_replace (&pad->buffer, NULL);
+      GST_BASE_MIXER_UNLOCK (mix);
       pad->start_time = -1;
       pad->end_time = -1;
 
