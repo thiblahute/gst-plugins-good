@@ -758,9 +758,11 @@ gst_basemixer_fill_queues (GstBasemixer * mix,
     GstBaseAggregatorPad *bpad;
     GstBuffer *buf;
     GstVideoInfo *vinfo;
+    gboolean is_eos;
 
     bpad = GST_BASE_AGGREGATOR_PAD (pad);
     segment = &bpad->segment;
+    is_eos = bpad->eos;
     buf = gst_base_aggregator_pad_get_buffer (bpad);
     if (buf) {
       GstClockTime start_time, end_time;
@@ -891,11 +893,11 @@ gst_basemixer_fill_queues (GstBasemixer * mix,
         if (pad->end_time <= output_start_time) {
           gst_buffer_replace (&pad->buffer, NULL);
           pad->start_time = pad->end_time = -1;
-          if (!bpad->eos) {
-            GST_ERROR ("I just need more data");
+          if (is_eos) {
+            GST_DEBUG ("I just need more data");
             need_more_data = TRUE;
           }
-        } else if (!bpad->eos) {
+        } else if (is_eos) {
           eos = FALSE;
         }
       }
