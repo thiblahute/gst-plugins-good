@@ -176,8 +176,8 @@ gst_basemixer_update_src_caps (GstBasemixer * mix)
 
     if (GST_VIDEO_INFO_FPS_N (&mix->info) != best_fps_n ||
         GST_VIDEO_INFO_FPS_D (&mix->info) != best_fps_d) {
-      if (mix->segment.position != -1) {
-        mix->ts_offset = mix->segment.position - mix->segment.start;
+      if (agg->segment.position != -1) {
+        mix->ts_offset = agg->segment.position - agg->segment.start;
         mix->nframes = 0;
       }
     }
@@ -421,7 +421,7 @@ gst_basemixer_pad_sink_setcaps (GstPad * pad, GstObject * parent,
   mixpad = GST_BASE_MIXER_PAD (pad);
 
   if (!gst_video_info_from_caps (&info, caps)) {
-    GST_ERROR_OBJECT (pad, "Failed to parse caps");
+    GST_DEBUG_OBJECT (pad, "Failed to parse caps");
     goto beach;
   }
 
@@ -715,14 +715,15 @@ gst_basemixer_read_qos (GstBasemixer * mix, gdouble * proportion,
 static void
 gst_basemixer_reset (GstBasemixer * mix)
 {
+  GstBaseAggregator *agg = GST_BASE_AGGREGATOR(mix);
   GSList *l;
 
   gst_video_info_init (&mix->info);
   mix->ts_offset = 0;
   mix->nframes = 0;
 
-  gst_segment_init (&mix->segment, GST_FORMAT_TIME);
-  mix->segment.position = -1;
+  gst_segment_init (&agg->segment, GST_FORMAT_TIME);
+  agg->segment.position = -1;
 
   gst_basemixer_reset_qos (mix);
 
@@ -748,6 +749,7 @@ static gint
 gst_basemixer_fill_queues (GstBasemixer * mix,
     GstClockTime output_start_time, GstClockTime output_end_time)
 {
+  GstBaseAggregator *agg = GST_BASE_AGGREGATOR(mix);
   GSList *l;
   gboolean eos = TRUE;
   gboolean need_more_data = FALSE;
@@ -770,7 +772,7 @@ gst_basemixer_fill_queues (GstBasemixer * mix,
       start_time = GST_BUFFER_TIMESTAMP (buf);
       if (start_time == -1) {
         gst_buffer_unref (buf);
-        GST_ERROR_OBJECT (pad, "Need timestamped buffers!");
+        GST_DEBUG_OBJECT (pad, "Need timestamped buffers!");
         return -2;
       }
 
@@ -780,7 +782,7 @@ gst_basemixer_fill_queues (GstBasemixer * mix,
 
       if ((pad->buffer && start_time < GST_BUFFER_TIMESTAMP (pad->buffer))
           || (pad->queued && start_time < GST_BUFFER_TIMESTAMP (pad->queued))) {
-        GST_ERROR_OBJECT (pad, "Buffer from the past, dropping");
+        GST_DEBUG_OBJECT (pad, "Buffer from the past, dropping");
         gst_buffer_unref (buf);
         need_more_data = TRUE;
         continue;
@@ -799,7 +801,7 @@ gst_basemixer_fill_queues (GstBasemixer * mix,
           pad->queued = buf;
           gst_buffer_unref (buf);
           pad->queued_vinfo = pad->info;
-          GST_ERROR ("end time is -1 and nothing queued");
+          GST_DEBUG ("end time is -1 and nothing queued");
           need_more_data = TRUE;
           continue;
         }
@@ -810,7 +812,7 @@ gst_basemixer_fill_queues (GstBasemixer * mix,
 
       /* Check if it's inside the segment */
       if (start_time >= segment->stop || end_time < segment->start) {
-        GST_ERROR_OBJECT (pad,
+        GST_DEBUG_OBJECT (pad,
             "Buffer outside the segment : segment: [%" GST_TIME_FORMAT " -- %"
             GST_TIME_FORMAT "]" " Buffer [%" GST_TIME_FORMAT " -- %"
             GST_TIME_FORMAT "]", GST_TIME_ARGS (segment->stop),
@@ -839,13 +841,13 @@ gst_basemixer_fill_queues (GstBasemixer * mix,
       g_assert (start_time != -1 && end_time != -1);
 
       /* Convert to the output segment rate */
-      if (ABS (mix->segment.rate) != 1.0) {
-        start_time *= ABS (mix->segment.rate);
-        end_time *= ABS (mix->segment.rate);
+      if (ABS (agg->segment.rate) != 1.0) {
+        start_time *= ABS (agg->segment.rate);
+        end_time *= ABS (agg->segment.rate);
       }
 
       if (pad->end_time != -1 && pad->end_time > end_time) {
-        GST_ERROR_OBJECT (pad, "Buffer from the past, dropping");
+        GST_DEBUG_OBJECT (pad, "Buffer from the past, dropping");
         if (buf == pad->queued) {
           gst_buffer_unref (buf);
           gst_buffer_replace (&pad->queued, NULL);
@@ -878,7 +880,7 @@ gst_basemixer_fill_queues (GstBasemixer * mix,
             GST_TIME_ARGS (start_time));
         eos = FALSE;
       } else {
-        GST_ERROR_OBJECT (pad, "Too old buffer -- dropping");
+        GST_DEBUG_OBJECT (pad, "Too old buffer -- dropping");
         if (buf == pad->queued) {
           gst_buffer_replace (&pad->queued, NULL);
         } else {
@@ -1017,6 +1019,7 @@ gst_basemixer_blend_buffers (GstBasemixer * mix,
 static gint64
 gst_basemixer_do_qos (GstBasemixer * mix, GstClockTime timestamp)
 {
+  GstBaseAggregator *agg = GST_BASE_AGGREGATOR(mix);
   GstClockTime qostime, earliest_time;
   gdouble proportion;
   gint64 jitter;
@@ -1038,7 +1041,7 @@ gst_basemixer_do_qos (GstBasemixer * mix, GstClockTime timestamp)
 
   /* qos is done on running time */
   qostime =
-      gst_segment_to_running_time (&mix->segment, GST_FORMAT_TIME, timestamp);
+      gst_segment_to_running_time (&agg->segment, GST_FORMAT_TIME, timestamp);
 
   /* see how our next timestamp relates to the latest qos timestamp */
   GST_LOG_OBJECT (mix, "qostime %" GST_TIME_FORMAT ", earliest %"
@@ -1068,56 +1071,30 @@ gst_basemixer_aggregate (GstBaseAggregator * agg)
   if (GST_VIDEO_INFO_FORMAT (&mix->info) == GST_VIDEO_FORMAT_UNKNOWN)
     return GST_FLOW_NOT_NEGOTIATED;
 
-  if (mix->send_stream_start) {
-    gchar s_id[32];
-
-    /* stream-start (FIXME: create id based on input ids) */
-    g_snprintf (s_id, sizeof (s_id), "mix-%08x", g_random_int ());
-    if (!gst_pad_push_event (agg->srcpad, gst_event_new_stream_start (s_id))) {
-      GST_WARNING_OBJECT (agg->srcpad, "Sending stream start event failed");
-    }
-    mix->send_stream_start = FALSE;
-  }
-
   if (gst_pad_check_reconfigure (agg->srcpad))
     gst_basemixer_update_src_caps (mix);
 
   if (mix->send_caps) {
-    if (!gst_pad_push_event (agg->srcpad,
-            gst_event_new_caps (mix->current_caps))) {
-      GST_WARNING_OBJECT (agg->srcpad, "Sending caps event failed");
-    }
+    gst_base_aggregator_set_src_caps(agg, mix->current_caps);
     mix->send_caps = FALSE;
   }
 
   GST_BASE_MIXER_LOCK (mix);
 
-  if (mix->newseg_pending) {
-    GST_ERROR_OBJECT (mix, "Sending NEWSEGMENT event");
-    GST_BASE_MIXER_UNLOCK (mix);
-    if (!gst_pad_push_event (agg->srcpad,
-            gst_event_new_segment (&mix->segment))) {
-      ret = GST_FLOW_ERROR;
-      goto done_unlocked;
-    }
-    GST_BASE_MIXER_LOCK (mix);
-    mix->newseg_pending = FALSE;
-  }
-
-  if (mix->segment.position == -1)
-    output_start_time = mix->segment.start;
+  if (agg->segment.position == -1)
+    output_start_time = agg->segment.start;
   else
-    output_start_time = mix->segment.position;
+    output_start_time = agg->segment.position;
 
   output_end_time =
       mix->ts_offset + gst_util_uint64_scale_round (mix->nframes + 1,
       GST_SECOND * GST_VIDEO_INFO_FPS_D (&mix->info),
-      GST_VIDEO_INFO_FPS_N (&mix->info)) + mix->segment.start;
+      GST_VIDEO_INFO_FPS_N (&mix->info)) + agg->segment.start;
 
-  if (output_end_time >= mix->segment.stop) {
+  if (output_end_time >= agg->segment.stop) {
     GST_DEBUG_OBJECT (mix, "Segment done");
 
-    if (!(mix->segment.flags & GST_SEGMENT_FLAG_SEGMENT)) {
+    if (!(agg->segment.flags & GST_SEGMENT_FLAG_SEGMENT)) {
       GST_BASE_MIXER_UNLOCK (mix);
       gst_pad_push_event (agg->srcpad, gst_event_new_eos ());
       ret = GST_FLOW_EOS;
@@ -1130,23 +1107,23 @@ gst_basemixer_aggregate (GstBaseAggregator * agg)
     mix->pending_tags = NULL;
   }
 
-  if (mix->segment.stop != -1)
-    output_end_time = MIN (output_end_time, mix->segment.stop);
+  if (agg->segment.stop != -1)
+    output_end_time = MIN (output_end_time, agg->segment.stop);
 
   res = gst_basemixer_fill_queues (mix, output_start_time, output_end_time);
 
   if (res == 0) {
-    GST_ERROR_OBJECT (mix, "Need more data for decisions");
+    GST_DEBUG_OBJECT (mix, "Need more data for decisions");
     ret = GST_FLOW_OK;
     goto done;
   } else if (res == -1) {
     GST_BASE_MIXER_UNLOCK (mix);
-    GST_ERROR_OBJECT (mix, "All sinkpads are EOS -- forwarding");
+    GST_DEBUG_OBJECT (mix, "All sinkpads are EOS -- forwarding");
     gst_pad_push_event (agg->srcpad, gst_event_new_eos ());
     ret = GST_FLOW_EOS;
     goto done_unlocked;
   } else if (res == -2) {
-    GST_ERROR_OBJECT (mix, "Error collecting buffers");
+    GST_DEBUG_OBJECT (mix, "Error collecting buffers");
     ret = GST_FLOW_ERROR;
     goto done;
   }
@@ -1165,8 +1142,8 @@ gst_basemixer_aggregate (GstBaseAggregator * agg)
     /* TODO: live */
     msg =
         gst_message_new_qos (GST_OBJECT_CAST (mix), FALSE,
-        gst_segment_to_running_time (&mix->segment, GST_FORMAT_TIME,
-            output_start_time), gst_segment_to_stream_time (&mix->segment,
+        gst_segment_to_running_time (&agg->segment, GST_FORMAT_TIME,
+            output_start_time), gst_segment_to_stream_time (&agg->segment,
             GST_FORMAT_TIME, output_start_time), output_start_time,
         output_end_time - output_start_time);
     gst_message_set_qos_values (msg, jitter, mix->proportion, 1000000);
@@ -1177,16 +1154,16 @@ gst_basemixer_aggregate (GstBaseAggregator * agg)
     ret = GST_FLOW_OK;
   }
 
-  mix->segment.position = output_end_time;
+  agg->segment.position = output_end_time;
   mix->nframes++;
 
   GST_BASE_MIXER_UNLOCK (mix);
   if (outbuf) {
-    GST_ERROR_OBJECT (mix,
+    GST_DEBUG_OBJECT (mix,
         "Pushing buffer with ts %" GST_TIME_FORMAT " and duration %"
         GST_TIME_FORMAT, GST_TIME_ARGS (GST_BUFFER_TIMESTAMP (outbuf)),
         GST_TIME_ARGS (GST_BUFFER_DURATION (outbuf)));
-    ret = gst_pad_push (agg->srcpad, outbuf);
+    ret = gst_base_aggregator_finish_buffer (agg, outbuf);
   }
   goto done_unlocked;
 
@@ -1381,8 +1358,8 @@ gst_basemixer_src_query (GstBaseAggregator * agg, GstQuery * query)
       switch (format) {
         case GST_FORMAT_TIME:
           gst_query_set_position (query, format,
-              gst_segment_to_stream_time (&mix->segment, GST_FORMAT_TIME,
-                  mix->segment.position));
+              gst_segment_to_stream_time (&agg->segment, GST_FORMAT_TIME,
+                  agg->segment.position));
           res = TRUE;
           break;
         default:
@@ -1444,7 +1421,7 @@ gst_basemixer_src_event (GstBaseAggregator * agg, GstEvent * event)
           &start, &stop_type, &stop);
 
       if (rate <= 0.0) {
-        GST_ERROR_OBJECT (mix, "Negative rates not supported yet");
+        GST_DEBUG_OBJECT (mix, "Negative rates not supported yet");
         result = FALSE;
         gst_event_unref (event);
         break;
@@ -1465,10 +1442,10 @@ gst_basemixer_src_event (GstBaseAggregator * agg, GstEvent * event)
         }
 
         /* Convert to the output segment rate */
-        if (ABS (mix->segment.rate) != abs_rate) {
-          if (ABS (mix->segment.rate) != 1.0 && p->buffer) {
-            p->start_time /= ABS (mix->segment.rate);
-            p->end_time /= ABS (mix->segment.rate);
+        if (ABS (agg->segment.rate) != abs_rate) {
+          if (ABS (agg->segment.rate) != 1.0 && p->buffer) {
+            p->start_time /= ABS (agg->segment.rate);
+            p->end_time /= ABS (agg->segment.rate);
           }
           if (abs_rate != 1.0 && p->buffer) {
             p->start_time *= abs_rate;
@@ -1478,12 +1455,9 @@ gst_basemixer_src_event (GstBaseAggregator * agg, GstEvent * event)
       }
       GST_BASE_MIXER_UNLOCK (mix);
 
-      gst_segment_do_seek (&mix->segment, rate, fmt, flags, start_type, start,
-          stop_type, stop, NULL);
-      mix->segment.position = -1;
+      agg->segment.position = -1;
       mix->ts_offset = 0;
       mix->nframes = 0;
-      mix->newseg_pending = TRUE;
 
       gst_basemixer_reset_qos (mix);
 
@@ -1507,6 +1481,7 @@ gst_basemixer_src_event (GstBaseAggregator * agg, GstEvent * event)
 static gboolean
 gst_basemixer_src_setcaps (GstPad * pad, GstBasemixer * mix, GstCaps * caps)
 {
+  GstBaseAggregator *agg = GST_BASE_AGGREGATOR(mix);
   gboolean ret = FALSE;
   GstVideoInfo info;
 
@@ -1521,8 +1496,8 @@ gst_basemixer_src_setcaps (GstPad * pad, GstBasemixer * mix, GstCaps * caps)
 
   if (GST_VIDEO_INFO_FPS_N (&mix->info) != GST_VIDEO_INFO_FPS_N (&info) ||
       GST_VIDEO_INFO_FPS_D (&mix->info) != GST_VIDEO_INFO_FPS_D (&info)) {
-    if (mix->segment.position != -1) {
-      mix->ts_offset = mix->segment.position - mix->segment.start;
+    if (agg->segment.position != -1) {
+      mix->ts_offset = agg->segment.position - agg->segment.start;
       mix->nframes = 0;
     }
     gst_basemixer_reset_qos (mix);
@@ -1546,13 +1521,12 @@ static GstFlowReturn
 gst_basemixer_sink_clip (GstBaseAggregator * agg,
     GstBaseAggregatorPad * bpad, GstBuffer * buf, GstBuffer ** outbuf)
 {
-  GstBasemixer *mix = GST_BASE_MIXER (agg);
   GstBasemixerPad *pad = GST_BASE_MIXER_PAD (bpad);
   GstClockTime start_time, end_time;
 
   start_time = GST_BUFFER_TIMESTAMP (buf);
   if (start_time == -1) {
-    GST_ERROR_OBJECT (pad, "Timestamped buffers required!");
+    GST_DEBUG_OBJECT (pad, "Timestamped buffers required!");
     gst_buffer_unref (buf);
     return GST_FLOW_ERROR;
   }
@@ -1578,9 +1552,9 @@ gst_basemixer_sink_clip (GstBaseAggregator * agg,
       gst_segment_to_running_time (&bpad->segment, GST_FORMAT_TIME, end_time);
 
   /* Convert to the output segment rate */
-  if (ABS (mix->segment.rate) != 1.0) {
-    start_time *= ABS (mix->segment.rate);
-    end_time *= ABS (mix->segment.rate);
+  if (ABS (agg->segment.rate) != 1.0) {
+    start_time *= ABS (agg->segment.rate);
+    end_time *= ABS (agg->segment.rate);
   }
 
   if (bpad->buffer != NULL && end_time < pad->end_time) {
@@ -1646,7 +1620,7 @@ gst_basemixer_sink_event (GstBaseAggregator * agg, GstBaseAggregatorPad * bpad,
       pad->start_time = -1;
       pad->end_time = -1;
 
-      mix->segment.position = -1;
+      agg->segment.position = -1;
       mix->ts_offset = 0;
       mix->nframes = 0;
       break;
@@ -1679,7 +1653,7 @@ forward_event_func (GValue * item, GValue * ret, GstEvent * event)
 {
   GstPad *pad = g_value_get_object (item);
   gst_event_ref (event);
-  GST_ERROR_OBJECT (pad, "About to send event %s", GST_EVENT_TYPE_NAME (event));
+  GST_DEBUG_OBJECT (pad, "About to send event %s", GST_EVENT_TYPE_NAME (event));
   if (!gst_pad_push_event (pad, event)) {
     g_value_set_boolean (ret, FALSE);
     GST_WARNING_OBJECT (pad, "Sending event  %p (%s) failed.",
@@ -1715,6 +1689,7 @@ gst_basemixer_push_sink_event (GstBasemixer * mix, GstEvent * event)
 static GstStateChangeReturn
 gst_basemixer_change_state (GstElement * element, GstStateChange transition)
 {
+  GstBaseAggregator *agg = GST_BASE_AGGREGATOR(element);
   GstBasemixer *mix = GST_BASE_MIXER (element);
   GstStateChangeReturn ret;
 
@@ -1722,7 +1697,7 @@ gst_basemixer_change_state (GstElement * element, GstStateChange transition)
     case GST_STATE_CHANGE_READY_TO_PAUSED:
       mix->send_stream_start = TRUE;
       mix->send_caps = TRUE;
-      gst_segment_init (&mix->segment, GST_FORMAT_TIME);
+      gst_segment_init (&agg->segment, GST_FORMAT_TIME);
       gst_caps_replace (&mix->current_caps, NULL);
       GST_LOG_OBJECT (mix, "starting collectpads");
       break;
