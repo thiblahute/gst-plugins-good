@@ -1633,7 +1633,7 @@ gst_basemixer_sink_event (GstBaseAggregator * agg, GstBaseAggregatorPad * bpad,
       tags = gst_tag_list_merge (mix->pending_tags, tags, GST_TAG_MERGE_APPEND);
       if (mix->pending_tags)
         gst_tag_list_unref (mix->pending_tags);
-      mix->pending_tags = tags;
+      mix->pending_tags = gst_tag_list_ref(tags);
       event = NULL;
       break;
     }
