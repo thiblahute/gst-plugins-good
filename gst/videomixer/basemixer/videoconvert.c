@@ -1260,9 +1260,12 @@ convert_I420_BGRA (VideoConvert * convert, GstVideoFrame * dest,
   gint height = convert->height;
 
   for (i = 0; i < height; i++) {
-    videomixer_video_convert_orc_convert_I420_BGRA (FRAME_GET_LINE (dest, i),
+    video_convert_orc_convert_I420_BGRA (FRAME_GET_LINE (dest, i),
         FRAME_GET_Y_LINE (src, i),
-        FRAME_GET_U_LINE (src, i >> 1), FRAME_GET_V_LINE (src, i >> 1), width);
+        FRAME_GET_U_LINE (src, i >> 1), FRAME_GET_V_LINE (src, i >> 1),
+        convert->cmatrix[0][0], convert->cmatrix[0][2],
+        convert->cmatrix[2][1], convert->cmatrix[1][1], convert->cmatrix[1][2],
+        width);
   }
 }
 #endif

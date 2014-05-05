@@ -517,19 +517,6 @@ gst_videomixer2_mix_frames (GstBasemixer * mix, GstVideoFrame * outframe)
   return GST_FLOW_OK;
 }
 
-static void
-gst_videomixer2_constructed (GObject * obj)
-{
-  GstVideoMixer2 *mix = GST_VIDEO_MIXER2 (obj);
-  gchar *cp_name;
-
-  cp_name = g_strconcat (GST_OBJECT_NAME (obj), "-collectpads", NULL);
-  gst_object_set_name (GST_OBJECT (mix->collect), cp_name);
-  g_free (cp_name);
-
-  G_OBJECT_CLASS (gst_videomixer2_parent_class)->constructed (obj);
-}
-
 /* GObject boilerplate */
 static void
 gst_videomixer2_class_init (GstVideoMixer2Class * klass)
