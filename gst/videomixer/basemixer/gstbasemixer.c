@@ -1091,17 +1091,6 @@ gst_basemixer_aggregate (GstBaseAggregator * agg)
       GST_SECOND * GST_VIDEO_INFO_FPS_D (&mix->info),
       GST_VIDEO_INFO_FPS_N (&mix->info)) + agg->segment.start;
 
-  if (output_end_time >= agg->segment.stop) {
-    GST_DEBUG_OBJECT (mix, "Segment done");
-
-    if (!(agg->segment.flags & GST_SEGMENT_FLAG_SEGMENT)) {
-      GST_BASE_MIXER_UNLOCK (mix);
-      gst_pad_push_event (agg->srcpad, gst_event_new_eos ());
-      ret = GST_FLOW_EOS;
-      goto done_unlocked;
-    }
-  }
-
   if (G_UNLIKELY (mix->pending_tags)) {
     gst_pad_push_event (agg->srcpad, gst_event_new_tag (mix->pending_tags));
     mix->pending_tags = NULL;
