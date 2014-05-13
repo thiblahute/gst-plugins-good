@@ -76,8 +76,6 @@ struct _GstBasemixer
   GstCaps *current_caps;
   gboolean send_caps;
 
-  gboolean newseg_pending;
-
   /* Current downstream segment */
   GstSegment segment;
   GstClockTime ts_offset;

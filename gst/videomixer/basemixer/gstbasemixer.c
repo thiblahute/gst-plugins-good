@@ -448,7 +448,6 @@ gst_basemixer_pad_sink_setcaps (GstPad * pad, GstObject * parent,
   GST_BASE_MIXER_UNLOCK (mix);
   if (ret)
     ret = gst_basemixer_update_src_caps (mix);
-  //GST_COLLECT_PADS_STREAM_UNLOCK (mix->collect);
 
 beach:
   return ret;
@@ -757,8 +756,6 @@ gst_basemixer_reset (GstBasemixer * mix)
 
     gst_video_info_init (&p->info);
   }
-
-  mix->newseg_pending = TRUE;
 }
 
 /*  1 == OK
@@ -1577,7 +1574,7 @@ gst_basemixer_sink_clip (GstBaseAggregator * agg,
   return GST_FLOW_OK;
 }
 
-static gboolean
+static GstFlowReturn
 gst_basemixer_flush (GstBaseAggregator * agg)
 {
   GstBasemixer *mix = GST_BASE_MIXER (agg);
@@ -1586,7 +1583,7 @@ gst_basemixer_flush (GstBaseAggregator * agg)
     gst_tag_list_unref (mix->pending_tags);
     mix->pending_tags = NULL;
   }
-  return TRUE;
+  return GST_FLOW_OK;
 }
 
 static gboolean
@@ -1695,10 +1692,8 @@ gst_basemixer_change_state (GstElement * element, GstStateChange transition)
       mix->send_caps = TRUE;
       gst_segment_init (&agg->segment, GST_FORMAT_TIME);
       gst_caps_replace (&mix->current_caps, NULL);
-      GST_LOG_OBJECT (mix, "starting collectpads");
       break;
     case GST_STATE_CHANGE_PAUSED_TO_READY:
-      GST_LOG_OBJECT (mix, "stopping collectpads");
       break;
     default:
       break;
