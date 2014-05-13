@@ -645,10 +645,29 @@ gst_basemixer_pad_set_property (GObject * object, guint prop_id,
   gst_object_unref (mix);
 }
 
+static gboolean
+_flush_pad (GstBaseAggregatorPad * aggpad, GstBaseAggregator * aggregator)
+{
+  GstBasemixer *mix = GST_BASE_MIXER (aggregator);
+  GstBasemixerPad *pad = GST_BASE_MIXER_PAD (aggpad);
+
+  gst_basemixer_reset_qos (mix);
+  gst_buffer_replace (&pad->buffer, NULL);
+  pad->start_time = -1;
+  pad->end_time = -1;
+
+  aggregator->segment.position = -1;
+  mix->ts_offset = 0;
+  mix->nframes = 0;
+
+  return TRUE;
+}
+
 static void
 gst_basemixer_pad_class_init (GstBasemixerPadClass * klass)
 {
   GObjectClass *gobject_class = (GObjectClass *) klass;
+  GstBaseAggregatorPadClass *aggpadclass = (GstBaseAggregatorPadClass *) klass;
 
   gobject_class->set_property = gst_basemixer_pad_set_property;
   gobject_class->get_property = gst_basemixer_pad_get_property;
@@ -657,6 +676,8 @@ gst_basemixer_pad_class_init (GstBasemixerPadClass * klass)
       g_param_spec_uint ("zorder", "Z-Order", "Z Order of the picture",
           0, 10000, DEFAULT_PAD_ZORDER,
           G_PARAM_READWRITE | GST_PARAM_CONTROLLABLE | G_PARAM_STATIC_STRINGS));
+
+  aggpadclass->flush = _flush_pad;
 }
 
 static void
@@ -1599,20 +1620,6 @@ gst_basemixer_sink_event (GstBaseAggregator * agg, GstBaseAggregatorPad * bpad,
       g_assert (seg.format == GST_FORMAT_TIME);
       break;
     }
-    case GST_EVENT_FLUSH_STOP:
-      mix->newseg_pending = TRUE;
-
-      gst_basemixer_reset_qos (mix);
-      GST_BASE_MIXER_LOCK (mix);
-      gst_buffer_replace (&pad->buffer, NULL);
-      GST_BASE_MIXER_UNLOCK (mix);
-      pad->start_time = -1;
-      pad->end_time = -1;
-
-      agg->segment.position = -1;
-      mix->ts_offset = 0;
-      mix->nframes = 0;
-      break;
     case GST_EVENT_TAG:
     {
       /* collect tags here so we can push them out when we collect data */
