@@ -78,8 +78,6 @@ static GstStaticPadTemplate sink_factory = GST_STATIC_PAD_TEMPLATE ("sink_%u",
 
 static void gst_basemixer_child_proxy_init (gpointer g_iface,
     gpointer iface_data);
-static gboolean gst_basemixer_push_sink_event (GstBasemixer * mix,
-    GstEvent * event);
 static void gst_basemixer_release_pad (GstElement * element, GstPad * pad);
 static void gst_basemixer_reset_qos (GstBasemixer * mix);
 
@@ -1396,7 +1394,6 @@ static gboolean
 gst_basemixer_src_event (GstBaseAggregator * agg, GstEvent * event)
 {
   GstBasemixer *mix = GST_BASE_MIXER (agg);
-  gboolean result;
 
   switch (GST_EVENT_TYPE (event)) {
     case GST_EVENT_QOS:
@@ -1407,14 +1404,12 @@ gst_basemixer_src_event (GstBaseAggregator * agg, GstEvent * event)
       gdouble proportion;
 
       gst_event_parse_qos (event, &type, &proportion, &diff, &timestamp);
-
       gst_basemixer_update_qos (mix, proportion, diff, timestamp);
-
-      result = gst_basemixer_push_sink_event (mix, event);
       break;
     }
     case GST_EVENT_SEEK:
     {
+      gboolean res;
       gdouble rate;
       GstFormat fmt;
       GstSeekFlags flags;
@@ -1429,15 +1424,16 @@ gst_basemixer_src_event (GstBaseAggregator * agg, GstEvent * event)
 
       if (rate <= 0.0) {
         GST_DEBUG_OBJECT (mix, "Negative rates not supported yet");
-        result = FALSE;
         gst_event_unref (event);
         break;
+        return FALSE;
       }
 
       GST_DEBUG_OBJECT (mix, "Handling SEEK event");
 
-      abs_rate = ABS (rate);
+      res = GST_BASE_AGGREGATOR_CLASS (parent_class)->src_event (agg, event);
 
+      abs_rate = ABS (rate);
       GST_BASE_MIXER_LOCK (mix);
       for (l = mix->sinkpads; l; l = l->next) {
         GstBasemixerPad *p = l->data;
@@ -1467,22 +1463,13 @@ gst_basemixer_src_event (GstBaseAggregator * agg, GstEvent * event)
       mix->nframes = 0;
 
       gst_basemixer_reset_qos (mix);
-
-      result = GST_BASE_AGGREGATOR_CLASS (parent_class)->src_event (agg, event);
-      break;
+      return res;
     }
-    case GST_EVENT_NAVIGATION:
-      /* navigation is rather pointless. */
-      result = FALSE;
-      gst_event_unref (event);
-      break;
     default:
-      /* just forward the rest for now */
-      result = gst_basemixer_push_sink_event (mix, event);
       break;
   }
 
-  return result;
+  return GST_BASE_AGGREGATOR_CLASS (parent_class)->src_event (agg, event);
 }
 
 static gboolean
@@ -1639,43 +1626,6 @@ gst_basemixer_sink_event (GstBaseAggregator * agg, GstBaseAggregatorPad * bpad,
         event);
 
   return ret;
-}
-
-static gboolean
-forward_event_func (GValue * item, GValue * ret, GstEvent * event)
-{
-  GstPad *pad = g_value_get_object (item);
-  gst_event_ref (event);
-  GST_DEBUG_OBJECT (pad, "About to send event %s", GST_EVENT_TYPE_NAME (event));
-  if (!gst_pad_push_event (pad, event)) {
-    g_value_set_boolean (ret, FALSE);
-    GST_WARNING_OBJECT (pad, "Sending event  %p (%s) failed.",
-        event, GST_EVENT_TYPE_NAME (event));
-  } else {
-    GST_LOG_OBJECT (pad, "Sent event  %p (%s).",
-        event, GST_EVENT_TYPE_NAME (event));
-  }
-  return TRUE;
-}
-
-static gboolean
-gst_basemixer_push_sink_event (GstBasemixer * mix, GstEvent * event)
-{
-  GstIterator *it;
-  GValue vret = { 0 };
-
-  GST_LOG_OBJECT (mix, "Forwarding event %p (%s)", event,
-      GST_EVENT_TYPE_NAME (event));
-
-  g_value_init (&vret, G_TYPE_BOOLEAN);
-  g_value_set_boolean (&vret, TRUE);
-  it = gst_element_iterate_sink_pads (GST_ELEMENT_CAST (mix));
-  gst_iterator_fold (it, (GstIteratorFoldFunction) forward_event_func, &vret,
-      event);
-  gst_iterator_free (it);
-  gst_event_unref (event);
-
-  return g_value_get_boolean (&vret);
 }
 
 /* GstElement vmethods */
