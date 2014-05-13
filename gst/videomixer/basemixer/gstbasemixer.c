@@ -715,7 +715,7 @@ gst_basemixer_read_qos (GstBasemixer * mix, gdouble * proportion,
 static void
 gst_basemixer_reset (GstBasemixer * mix)
 {
-  GstBaseAggregator *agg = GST_BASE_AGGREGATOR(mix);
+  GstBaseAggregator *agg = GST_BASE_AGGREGATOR (mix);
   GSList *l;
 
   gst_video_info_init (&mix->info);
@@ -749,7 +749,7 @@ static gint
 gst_basemixer_fill_queues (GstBasemixer * mix,
     GstClockTime output_start_time, GstClockTime output_end_time)
 {
-  GstBaseAggregator *agg = GST_BASE_AGGREGATOR(mix);
+  GstBaseAggregator *agg = GST_BASE_AGGREGATOR (mix);
   GSList *l;
   gboolean eos = TRUE;
   gboolean need_more_data = FALSE;
@@ -1019,7 +1019,7 @@ gst_basemixer_blend_buffers (GstBasemixer * mix,
 static gint64
 gst_basemixer_do_qos (GstBasemixer * mix, GstClockTime timestamp)
 {
-  GstBaseAggregator *agg = GST_BASE_AGGREGATOR(mix);
+  GstBaseAggregator *agg = GST_BASE_AGGREGATOR (mix);
   GstClockTime qostime, earliest_time;
   gdouble proportion;
   gint64 jitter;
@@ -1075,7 +1075,7 @@ gst_basemixer_aggregate (GstBaseAggregator * agg)
     gst_basemixer_update_src_caps (mix);
 
   if (mix->send_caps) {
-    gst_base_aggregator_set_src_caps(agg, mix->current_caps);
+    gst_base_aggregator_set_src_caps (agg, mix->current_caps);
     mix->send_caps = FALSE;
   }
 
@@ -1470,7 +1470,7 @@ gst_basemixer_src_event (GstBaseAggregator * agg, GstEvent * event)
 static gboolean
 gst_basemixer_src_setcaps (GstPad * pad, GstBasemixer * mix, GstCaps * caps)
 {
-  GstBaseAggregator *agg = GST_BASE_AGGREGATOR(mix);
+  GstBaseAggregator *agg = GST_BASE_AGGREGATOR (mix);
   gboolean ret = FALSE;
   GstVideoInfo info;
 
@@ -1622,7 +1622,7 @@ gst_basemixer_sink_event (GstBaseAggregator * agg, GstBaseAggregatorPad * bpad,
       tags = gst_tag_list_merge (mix->pending_tags, tags, GST_TAG_MERGE_APPEND);
       if (mix->pending_tags)
         gst_tag_list_unref (mix->pending_tags);
-      mix->pending_tags = gst_tag_list_ref(tags);
+      mix->pending_tags = gst_tag_list_ref (tags);
       event = NULL;
       break;
     }
@@ -1678,7 +1678,7 @@ gst_basemixer_push_sink_event (GstBasemixer * mix, GstEvent * event)
 static GstStateChangeReturn
 gst_basemixer_change_state (GstElement * element, GstStateChange transition)
 {
-  GstBaseAggregator *agg = GST_BASE_AGGREGATOR(element);
+  GstBaseAggregator *agg = GST_BASE_AGGREGATOR (element);
   GstBasemixer *mix = GST_BASE_MIXER (element);
   GstStateChangeReturn ret;
 
