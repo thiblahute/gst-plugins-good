@@ -1409,61 +1409,7 @@ gst_basemixer_src_event (GstBaseAggregator * agg, GstEvent * event)
     }
     case GST_EVENT_SEEK:
     {
-      gboolean res;
-      gdouble rate;
-      GstFormat fmt;
-      GstSeekFlags flags;
-      GstSeekType start_type, stop_type;
-      gint64 start, stop;
-      GSList *l;
-      gdouble abs_rate;
-
-      /* parse the seek parameters */
-      gst_event_parse_seek (event, &rate, &fmt, &flags, &start_type,
-          &start, &stop_type, &stop);
-
-      if (rate <= 0.0) {
-        GST_DEBUG_OBJECT (mix, "Negative rates not supported yet");
-        gst_event_unref (event);
-        break;
-        return FALSE;
-      }
-
       GST_DEBUG_OBJECT (mix, "Handling SEEK event");
-
-      res = GST_BASE_AGGREGATOR_CLASS (parent_class)->src_event (agg, event);
-
-      abs_rate = ABS (rate);
-      GST_BASE_MIXER_LOCK (mix);
-      for (l = mix->sinkpads; l; l = l->next) {
-        GstBasemixerPad *p = l->data;
-
-        if (flags & GST_SEEK_FLAG_FLUSH) {
-          gst_buffer_replace (&p->buffer, NULL);
-          p->start_time = p->end_time = -1;
-          continue;
-        }
-
-        /* Convert to the output segment rate */
-        if (ABS (agg->segment.rate) != abs_rate) {
-          if (ABS (agg->segment.rate) != 1.0 && p->buffer) {
-            p->start_time /= ABS (agg->segment.rate);
-            p->end_time /= ABS (agg->segment.rate);
-          }
-          if (abs_rate != 1.0 && p->buffer) {
-            p->start_time *= abs_rate;
-            p->end_time *= abs_rate;
-          }
-        }
-      }
-      GST_BASE_MIXER_UNLOCK (mix);
-
-      agg->segment.position = -1;
-      mix->ts_offset = 0;
-      mix->nframes = 0;
-
-      gst_basemixer_reset_qos (mix);
-      return res;
     }
     default:
       break;
@@ -1564,12 +1510,42 @@ gst_basemixer_sink_clip (GstBaseAggregator * agg,
 static GstFlowReturn
 gst_basemixer_flush (GstBaseAggregator * agg)
 {
+  GSList *l;
+  gdouble abs_rate;
   GstBasemixer *mix = GST_BASE_MIXER (agg);
+
+  GST_ERROR ("=== FLUSHING");
 
   if (mix->pending_tags) {
     gst_tag_list_unref (mix->pending_tags);
     mix->pending_tags = NULL;
   }
+
+  GST_ERROR ("=== HERE");
+  abs_rate = ABS (agg->segment.rate);
+  GST_BASE_MIXER_LOCK (mix);
+  for (l = mix->sinkpads; l; l = l->next) {
+    GstBasemixerPad *p = l->data;
+
+    /* Convert to the output segment rate */
+    if (ABS (agg->segment.rate) != abs_rate) {
+      if (ABS (agg->segment.rate) != 1.0 && p->buffer) {
+        p->start_time /= ABS (agg->segment.rate);
+        p->end_time /= ABS (agg->segment.rate);
+      }
+      if (abs_rate != 1.0 && p->buffer) {
+        p->start_time *= abs_rate;
+        p->end_time *= abs_rate;
+      }
+    }
+  }
+  GST_BASE_MIXER_UNLOCK (mix);
+
+  agg->segment.position = -1;
+  mix->ts_offset = 0;
+  mix->nframes = 0;
+
+  gst_basemixer_reset_qos (mix);
   return GST_FLOW_OK;
 }
 
