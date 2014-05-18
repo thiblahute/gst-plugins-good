@@ -653,10 +653,6 @@ _flush_pad (GstBaseAggregatorPad * aggpad, GstBaseAggregator * aggregator)
   pad->start_time = -1;
   pad->end_time = -1;
 
-  aggregator->segment.position = -1;
-  mix->ts_offset = 0;
-  mix->nframes = 0;
-
   return TRUE;
 }
 
@@ -674,7 +670,7 @@ gst_basemixer_pad_class_init (GstBasemixerPadClass * klass)
           0, 10000, DEFAULT_PAD_ZORDER,
           G_PARAM_READWRITE | GST_PARAM_CONTROLLABLE | G_PARAM_STATIC_STRINGS));
 
-  aggpadclass->flush = _flush_pad;
+  aggpadclass->flush = GST_DEBUG_FUNCPTR (_flush_pad);
 }
 
 static void
