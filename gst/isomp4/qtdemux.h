@@ -88,6 +88,8 @@ struct _GstQTDemux {
   gboolean pullbased;
   gboolean posted_redirect;
 
+  GstEvent *pending_seek;
+
   /* push based variables */
   guint neededbytes;
   guint todrop;

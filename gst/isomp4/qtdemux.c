@@ -470,6 +470,78 @@ static void gst_qtdemux_remove_stream (GstQTDemux * qtdemux, int index);
 static GstFlowReturn qtdemux_prepare_streams (GstQTDemux * qtdemux);
 static void qtdemux_do_allocation (GstQTDemux * qtdemux,
     QtDemuxStream * stream);
+static gboolean
+gst_qtdemux_perform_seek (GstQTDemux * qtdemux, GstSegment * segment,
+    guint32 seqnum);
+
+static void
+_do_seek_on_ready(GstQTDemux *qtdemux, GstEvent *event) {
+  gdouble rate;
+  GstFormat format;
+  GstSeekFlags flags;
+  GstSeekType cur_type, stop_type;
+  gint64 cur, stop;
+  gboolean update;
+  GstSegment seeksegment;
+  guint32 seqnum = 0;
+
+  gst_event_parse_seek (event, &rate, &format, &flags,
+        &cur_type, &cur, &stop_type, &stop);
+  seqnum = gst_event_get_seqnum (event);
+  memcpy (&seeksegment, &qtdemux->segment, sizeof (GstSegment));
+  if (event) {
+    /* configure the segment with the seek variables */
+    GST_DEBUG_OBJECT (qtdemux, "configuring seek");
+    gst_segment_do_seek (&seeksegment, rate, format, flags,
+        cur_type, cur, stop_type, stop, &update);
+  }
+
+  /* now do the seek, this actually never returns FALSE */
+  gst_qtdemux_perform_seek (qtdemux, &seeksegment, seqnum);
+
+  memcpy (&qtdemux->segment, &seeksegment, sizeof (GstSegment));
+}
+
+static gboolean
+gst_qtdemux_send_event (GstElement * element, GstEvent * event)
+{
+  GstQTDemux *demux;
+  gboolean result = TRUE;
+  demux = GST_QTDEMUX (element);
+
+  switch (GST_EVENT_TYPE (event)) {
+    case GST_EVENT_SEEK:
+    {
+      gboolean started;
+      GstPadMode mode;
+
+      GST_OBJECT_LOCK (demux->sinkpad);
+      mode = GST_PAD_MODE (demux->sinkpad);
+      started = (mode != GST_PAD_MODE_NONE);
+      GST_OBJECT_UNLOCK (demux->sinkpad);
+
+      if (!started) {
+        GST_OBJECT_LOCK (demux);
+        demux->pending_seek = event;
+        event = NULL;
+        GST_OBJECT_UNLOCK (demux);
+        /* assume the seek will work */
+        break;
+      }
+      /* Fallthrough */
+    }
+    default:
+      result = GST_ELEMENT_CLASS (parent_class)->send_event (element, event);
+      event = NULL;
+      break;
+  }
+
+  /* if we still have a ref to the event, unref it now */
+  if (event)
+    gst_event_unref (event);
+
+  return result;
+}
 
 static void
 gst_qtdemux_class_init (GstQTDemuxClass * klass)
@@ -485,6 +557,7 @@ gst_qtdemux_class_init (GstQTDemuxClass * klass)
   gobject_class->dispose = gst_qtdemux_dispose;
 
   gstelement_class->change_state = GST_DEBUG_FUNCPTR (gst_qtdemux_change_state);
+  gstelement_class->send_event = GST_DEBUG_FUNCPTR (gst_qtdemux_send_event);
 #if 0
   gstelement_class->set_index = GST_DEBUG_FUNCPTR (gst_qtdemux_set_index);
   gstelement_class->get_index = GST_DEBUG_FUNCPTR (gst_qtdemux_get_index);
@@ -4360,6 +4433,11 @@ gst_qtdemux_loop (GstPad * pad)
       ret = gst_qtdemux_loop_state_header (qtdemux);
       break;
     case QTDEMUX_STATE_MOVIE:
+      if (qtdemux->pending_seek) {
+        _do_seek_on_ready (qtdemux, qtdemux->pending_seek);
+        gst_event_unref (qtdemux->pending_seek);
+        qtdemux->pending_seek = NULL;
+      }
       ret = gst_qtdemux_loop_state_movie (qtdemux);
       if (qtdemux->segment.rate < 0 && ret == GST_FLOW_EOS) {
         ret = gst_qtdemux_seek_to_previous_keyframe (qtdemux);
