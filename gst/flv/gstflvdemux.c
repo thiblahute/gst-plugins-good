@@ -1108,7 +1108,7 @@ gst_flv_demux_parse_tag_audio (GstFlvDemux * demux, GstBuffer * buffer)
 
   /* detect (and deem to be resyncs)  large pts gaps */
   if (gst_flv_demux_update_resync (demux, pts, demux->audio_need_discont,
-      &demux->last_audio_pts, &demux->audio_time_offset)) {
+          &demux->last_audio_pts, &demux->audio_time_offset)) {
     GST_BUFFER_FLAG_SET (outbuf, GST_BUFFER_FLAG_RESYNC);
   }
 
@@ -1495,7 +1495,7 @@ gst_flv_demux_parse_tag_video (GstFlvDemux * demux, GstBuffer * buffer)
 
   /* detect (and deem to be resyncs)  large pts gaps */
   if (gst_flv_demux_update_resync (demux, pts, demux->video_need_discont,
-      &demux->last_video_pts, &demux->video_time_offset)) {
+          &demux->last_video_pts, &demux->video_time_offset)) {
     GST_BUFFER_FLAG_SET (outbuf, GST_BUFFER_FLAG_RESYNC);
   }
 
@@ -1902,6 +1902,58 @@ flv_demux_seek_to_offset (GstFlvDemux * demux, guint64 offset)
   if (res)
     demux->offset = offset;
   return res;
+}
+
+static gboolean
+flv_demux_send_event (GstElement * element, GstEvent * event)
+{
+  GstFlvDemux *demux;
+  gboolean result = FALSE;
+
+  demux = GST_FLV_DEMUX (element);
+
+  GST_DEBUG_OBJECT (demux, "handling event %p %" GST_PTR_FORMAT, event, event);
+
+  switch (GST_EVENT_TYPE (event)) {
+    case GST_EVENT_SEEK:
+    {
+      gboolean started;
+      GstPadMode mode;
+
+      GST_OBJECT_LOCK (demux->sinkpad);
+      mode = GST_PAD_MODE (demux->sinkpad);
+      started = (mode != GST_PAD_MODE_NONE);
+      GST_OBJECT_UNLOCK (demux->sinkpad);
+
+      if (started) {
+        GST_DEBUG_OBJECT (demux, "performing seek");
+        if (mode == GST_PAD_MODE_PUSH)
+          result = flv_demux_handle_seek_push (demux, event);
+        else
+          result = gst_flv_demux_handle_seek_pull (demux, event, TRUE);
+      } else {
+        /* else we store the event and execute the seek when we
+         * get activated */
+        GST_OBJECT_LOCK (demux);
+        GST_INFO_OBJECT (demux, "queueing seek to be used later");
+        gst_event_replace (&demux->pending_seek, event);
+        GST_OBJECT_UNLOCK (demux);
+        /* assume the seek will work */
+        result = TRUE;
+      }
+      break;
+    }
+    default:
+      result = GST_ELEMENT_CLASS (parent_class)->send_event (element, event);
+      event = NULL;
+      break;
+  }
+
+  /* if we still have a ref to the event, unref it now */
+  if (event)
+    gst_event_unref (event);
+
+  return result;
 }
 
 static GstFlowReturn
@@ -2463,6 +2515,17 @@ gst_flv_demux_loop (GstPad * pad)
 
   demux = GST_FLV_DEMUX (gst_pad_get_parent (pad));
 
+  if (demux->pending_seek) {
+    ret = gst_flv_demux_pull_header (pad, demux);
+
+    /* index scans start after header */
+    demux->index_max_pos = demux->offset;
+
+    gst_flv_demux_handle_seek_pull (demux, demux->pending_seek, TRUE);
+
+    demux->pending_seek = NULL;
+  }
+
   /* pull in data */
   switch (demux->state) {
     case FLV_STATE_TAG_TYPE:
@@ -2858,7 +2921,8 @@ gst_flv_demux_handle_seek_pull (GstFlvDemux * demux, GstEvent * event,
     /* Do the actual seeking */
     /* index is reliable if it is complete or we do not go to far ahead */
     if (seeking && !demux->indexed &&
-        seeksegment.position > demux->index_max_time + 10 * GST_SECOND) {
+        (demux->index_max_time == 0 ||
+            seeksegment.position > demux->index_max_time + 10 * GST_SECOND)) {
       GST_DEBUG_OBJECT (demux, "delaying seek to post-scan; "
           " index only up to %" GST_TIME_FORMAT,
           GST_TIME_ARGS (demux->index_max_time));
@@ -3009,6 +3073,7 @@ gst_flv_demux_sink_activate_mode (GstPad * sinkpad, GstObject * parent,
       res = FALSE;
       break;
   }
+
   return res;
 }
 
@@ -3429,6 +3494,7 @@ gst_flv_demux_class_init (GstFlvDemuxClass * klass)
 
   gstelement_class->change_state =
       GST_DEBUG_FUNCPTR (gst_flv_demux_change_state);
+  gstelement_class->send_event = GST_DEBUG_FUNCPTR (flv_demux_send_event);
 
 #if 0
   gstelement_class->set_index = GST_DEBUG_FUNCPTR (gst_flv_demux_set_index);
