@@ -132,6 +132,7 @@ struct _GstFlvDemux
 
   gboolean no_more_pads;
 
+  GstEvent *pending_seek;
   gboolean seeking;
   gboolean building_index;
   gboolean indexed; /* TRUE if index is completely built */
