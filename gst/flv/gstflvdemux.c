@@ -1908,7 +1908,6 @@ static gboolean
 flv_demux_send_event (GstElement * element, GstEvent * event)
 {
   GstFlvDemux *demux;
-  gboolean result = FALSE;
 
   demux = GST_FLV_DEMUX (element);
 
@@ -1925,13 +1924,7 @@ flv_demux_send_event (GstElement * element, GstEvent * event)
       started = (mode != GST_PAD_MODE_NONE);
       GST_OBJECT_UNLOCK (demux->sinkpad);
 
-      if (started) {
-        GST_DEBUG_OBJECT (demux, "performing seek");
-        if (mode == GST_PAD_MODE_PUSH)
-          result = flv_demux_handle_seek_push (demux, event);
-        else
-          result = gst_flv_demux_handle_seek_pull (demux, event, TRUE);
-      } else {
+      if (!started) {
         /* else we store the event and execute the seek when we
          * get activated */
         GST_OBJECT_LOCK (demux);
@@ -1939,21 +1932,16 @@ flv_demux_send_event (GstElement * element, GstEvent * event)
         gst_event_replace (&demux->pending_seek, event);
         GST_OBJECT_UNLOCK (demux);
         /* assume the seek will work */
-        result = TRUE;
+        return TRUE;
       }
       break;
     }
     default:
-      result = GST_ELEMENT_CLASS (parent_class)->send_event (element, event);
       event = NULL;
       break;
   }
 
-  /* if we still have a ref to the event, unref it now */
-  if (event)
-    gst_event_unref (event);
-
-  return result;
+  return GST_ELEMENT_CLASS (parent_class)->send_event (element, event);
 }
 
 static GstFlowReturn
