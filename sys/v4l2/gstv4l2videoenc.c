@@ -35,6 +35,8 @@
 #include <string.h>
 #include <gst/gst-i18n-plugin.h>
 
+#define DEFAULT_PROP_DEVICE "/dev/video10"
+
 GST_DEBUG_CATEGORY_STATIC (gst_v4l2_video_enc_debug);
 #define GST_CAT_DEFAULT gst_v4l2_video_enc_debug
 
@@ -52,7 +54,7 @@ enum
 G_DEFINE_ABSTRACT_TYPE (GstV4l2VideoEnc, gst_v4l2_video_enc,
     GST_TYPE_VIDEO_ENCODER);
 
-static void
+void
 gst_v4l2_video_enc_set_property (GObject * object,
     guint prop_id, const GValue * value, GParamSpec * pspec)
 {
@@ -91,7 +93,7 @@ gst_v4l2_video_enc_set_property (GObject * object,
   }
 }
 
-static void
+void
 gst_v4l2_video_enc_get_property (GObject * object,
     guint prop_id, GValue * value, GParamSpec * pspec)
 {
@@ -465,7 +467,7 @@ gst_v4l2_video_enc_handle_frame (GstVideoEncoder * encoder,
     if (!gst_buffer_pool_is_active (pool)) {
       GstStructure *config = gst_buffer_pool_get_config (pool);
       gint min = self->v4l2output->min_buffers == 0 ? GST_V4L2_MIN_BUFFERS :
-              self->v4l2output->min_buffers;
+          self->v4l2output->min_buffers;
 
       gst_buffer_pool_config_set_params (config,
           self->input_state->caps, self->v4l2output->info.size, min, min);
@@ -767,7 +769,17 @@ gst_v4l2_video_enc_finalize (GObject * object)
 static void
 gst_v4l2_video_enc_init (GstV4l2VideoEnc * self)
 {
-  /* V4L2 object are created in subinstance_init */
+  self->v4l2output = gst_v4l2_object_new (GST_ELEMENT (self),
+      V4L2_BUF_TYPE_VIDEO_OUTPUT, DEFAULT_PROP_DEVICE,
+      gst_v4l2_get_output, gst_v4l2_set_output, NULL);
+  self->v4l2output->no_initial_format = TRUE;
+  self->v4l2output->keep_aspect = FALSE;
+
+  self->v4l2capture = gst_v4l2_object_new (GST_ELEMENT (self),
+      V4L2_BUF_TYPE_VIDEO_CAPTURE, DEFAULT_PROP_DEVICE,
+      gst_v4l2_get_input, gst_v4l2_set_input, NULL);
+  self->v4l2capture->no_initial_format = TRUE;
+  self->v4l2output->keep_aspect = FALSE;
 }
 
 static void
@@ -791,6 +803,13 @@ gst_v4l2_video_enc_class_init (GstV4l2VideoEncClass * klass)
       "Codec/Encoder/Video",
       "Encode video streams via V4L2 API", "ayaka <ayaka@soulik.info>");
 
+  gst_element_class_add_pad_template (element_class,
+      gst_pad_template_new ("sink", GST_PAD_SINK, GST_PAD_ALWAYS,
+          gst_v4l2_object_get_raw_caps ()));
+  gst_element_class_add_pad_template (element_class,
+      gst_pad_template_new ("src", GST_PAD_SRC, GST_PAD_ALWAYS,
+          gst_v4l2_object_get_codec_caps ()));
+
   gobject_class->dispose = GST_DEBUG_FUNCPTR (gst_v4l2_video_enc_dispose);
   gobject_class->finalize = GST_DEBUG_FUNCPTR (gst_v4l2_video_enc_finalize);
   gobject_class->set_property =
@@ -811,7 +830,7 @@ gst_v4l2_video_enc_class_init (GstV4l2VideoEncClass * klass)
   video_encoder_class->decide_allocation =
       GST_DEBUG_FUNCPTR (gst_v4l2_video_enc_decide_allocation);
   video_encoder_class->propose_allocation =
-       GST_DEBUG_FUNCPTR (gst_v4l2_video_enc_propose_allocation);
+      GST_DEBUG_FUNCPTR (gst_v4l2_video_enc_propose_allocation);
   video_encoder_class->sink_query =
       GST_DEBUG_FUNCPTR (gst_v4l2_video_enc_sink_query);
   video_encoder_class->src_query =
