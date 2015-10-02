@@ -302,6 +302,38 @@ gst_v4l2_video_enc_negotiate (GstVideoEncoder * encoder)
   return GST_VIDEO_ENCODER_CLASS (parent_class)->negotiate (encoder);
 }
 
+static gboolean
+gst_v4l2_encoder_cmd (GstV4l2Object * v4l2object, guint cmd, guint flags)
+{
+  struct v4l2_encoder_cmd ecmd = { 0, };
+
+  GST_DEBUG_OBJECT (v4l2object->element,
+      "sending v4l2 encoder command %u with flags %u", cmd, flags);
+
+  if (!GST_V4L2_IS_OPEN (v4l2object))
+    return FALSE;
+
+  ecmd.cmd = cmd;
+  ecmd.flags = flags;
+  if (v4l2_ioctl (v4l2object->video_fd, VIDIOC_ENCODER_CMD, &ecmd) < 0)
+    goto ecmd_failed;
+
+  return TRUE;
+
+ecmd_failed:
+  if (errno == ENOTTY) {
+    GST_INFO_OBJECT (v4l2object->element,
+        "Failed to send encoder command %u with flags %u for '%s'. (%s)",
+        cmd, flags, v4l2object->videodev, g_strerror (errno));
+  } else {
+    GST_ERROR_OBJECT (v4l2object->element,
+        "Failed to send encoder command %u with flags %u for '%s'. (%s)",
+        cmd, flags, v4l2object->videodev, g_strerror (errno));
+  }
+  return FALSE;
+}
+
+
 static GstFlowReturn
 gst_v4l2_video_enc_finish (GstVideoEncoder * encoder)
 {
@@ -320,11 +352,9 @@ gst_v4l2_video_enc_finish (GstVideoEncoder * encoder)
 
   if (gst_v4l2_encoder_cmd (self->v4l2output, V4L2_ENC_CMD_STOP, 0)) {
     /* If the encoder stop command succeeded, just wait until processing is
-     * finished */
+    * finished */
     GST_OBJECT_LOCK (encoder->srcpad->task);
-//    GST_TASK_WAIT (encoder->srcpad->task);
-    /* Wait two second before quitting */
-    g_usleep (2 * G_USEC_PER_SEC);
+    GST_TASK_WAIT (encoder->srcpad->task);
     GST_OBJECT_UNLOCK (encoder->srcpad->task);
     ret = GST_FLOW_FLUSHING;
   } else {
