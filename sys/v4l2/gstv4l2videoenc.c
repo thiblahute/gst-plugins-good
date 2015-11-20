@@ -63,9 +63,9 @@ gst_v4l2_video_enc_set_property (GObject * object,
   switch (prop_id) {
       /* Split IO mode so output is configure through 'io-mode' and capture
        * through 'capture-io-mode' */
-    case PROP_IO_MODE:
+    case PROP_OUTPUT_IO_MODE:
       gst_v4l2_object_set_property_helper (self->v4l2output,
-          PROP_IO_MODE, value, pspec);
+          prop_id, value, pspec);
       break;
     case PROP_CAPTURE_IO_MODE:
       gst_v4l2_object_set_property_helper (self->v4l2capture,
@@ -100,12 +100,12 @@ gst_v4l2_video_enc_get_property (GObject * object,
   GstV4l2VideoEnc *self = GST_V4L2_VIDEO_ENC (object);
 
   switch (prop_id) {
-    case PROP_IO_MODE:
+    case PROP_OUTPUT_IO_MODE:
       gst_v4l2_object_get_property_helper (self->v4l2output,
           prop_id, value, pspec);
       break;
     case PROP_CAPTURE_IO_MODE:
-      gst_v4l2_object_get_property_helper (self->v4l2output,
+      gst_v4l2_object_get_property_helper (self->v4l2capture,
           PROP_IO_MODE, value, pspec);
       break;
 
@@ -587,15 +587,28 @@ gst_v4l2_video_enc_decide_allocation (GstVideoEncoder *
   GstClockTime latency;
   gboolean ret = FALSE;
 
-  self->v4l2capture->info.size = MAX_CODEC_FRAME;
+  GST_DEBUG_OBJECT (self, "called");
 
-  if (gst_v4l2_object_decide_allocation (self->v4l2capture, query))
+  if (gst_v4l2_object_decide_allocation (self->v4l2capture, query)) {
+    GstBufferPool *pool = GST_BUFFER_POOL (self->v4l2capture->pool);
+
     ret =
-        GST_VIDEO_ENCODER_CLASS
-        (parent_class)->decide_allocation (encoder, query);
-  latency = self->v4l2capture->min_buffers * self->v4l2capture->duration;
-  gst_video_encoder_set_latency (encoder, latency, latency);
+        GST_VIDEO_ENCODER_CLASS (parent_class)->decide_allocation (encoder,
+        query);
+
+    if (!gst_buffer_pool_set_active (pool, TRUE))
+      goto activate_failed;
+
+    latency = self->v4l2capture->min_buffers * self->v4l2capture->duration;
+    gst_video_encoder_set_latency (encoder, latency, latency);
+  }
+
   return ret;
+
+activate_failed:
+  GST_ELEMENT_ERROR (self, RESOURCE, SETTINGS,
+      ("failed to activate bufferpool"), ("failed to activate bufferpool"));
+  return TRUE;
 }
 
 static gboolean
