@@ -40,8 +40,6 @@
 GST_DEBUG_CATEGORY_STATIC (gst_v4l2_video_enc_debug);
 #define GST_CAT_DEFAULT gst_v4l2_video_enc_debug
 
-#define MAX_CODEC_FRAME (2 * 1024 * 1024)
-
 static gboolean gst_v4l2_video_enc_flush (GstVideoEncoder * encoder);
 
 enum
@@ -319,12 +317,26 @@ gst_v4l2_video_enc_finish (GstVideoEncoder * encoder)
   /* Keep queuing empty buffers until the processing thread has stopped,
    * _pool_process() will return FLUSHING when that happened */
   GST_VIDEO_ENCODER_STREAM_UNLOCK (encoder);
-  while (ret == GST_FLOW_OK) {
-    buffer = gst_buffer_new ();
-    ret =
-        gst_v4l2_buffer_pool_process (GST_V4L2_BUFFER_POOL
-        (self->v4l2output->pool), &buffer);
-    gst_buffer_unref (buffer);
+
+  if (gst_v4l2_encoder_cmd (self->v4l2output, V4L2_ENC_CMD_STOP, 0)) {
+    /* If the encoder stop command succeeded, just wait until processing is
+     * finished */
+    GST_OBJECT_LOCK (encoder->srcpad->task);
+//    GST_TASK_WAIT (encoder->srcpad->task);
+    /* Wait two second before quitting */
+    g_usleep (2 * G_USEC_PER_SEC);
+    GST_OBJECT_UNLOCK (encoder->srcpad->task);
+    ret = GST_FLOW_FLUSHING;
+  } else {
+    /* otherwise keep queuing empty buffers until the processing thread has
+     * stopped, _pool_process() will return FLUSHING when that happened */
+    while (ret == GST_FLOW_OK) {
+      buffer = gst_buffer_new ();
+      ret =
+          gst_v4l2_buffer_pool_process (GST_V4L2_BUFFER_POOL (self->v4l2output->
+              pool), &buffer);
+      gst_buffer_unref (buffer);
+    }
   }
 
   /* and ensure the processing thread has stopped in case another error
@@ -383,7 +395,9 @@ gst_v4l2_video_enc_loop (GstVideoEncoder * encoder)
 
   GST_LOG_OBJECT (encoder, "Allocate output buffer");
 
-  buffer = gst_video_encoder_allocate_output_buffer (encoder, MAX_CODEC_FRAME);
+  buffer =
+      gst_video_encoder_allocate_output_buffer (encoder,
+      self->v4l2capture->info.size);
 
   if (NULL == buffer) {
     ret = GST_FLOW_FLUSHING;
