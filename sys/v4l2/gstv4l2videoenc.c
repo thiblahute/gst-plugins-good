@@ -363,8 +363,8 @@ gst_v4l2_video_enc_finish (GstVideoEncoder * encoder)
     while (ret == GST_FLOW_OK) {
       buffer = gst_buffer_new ();
       ret =
-          gst_v4l2_buffer_pool_process (GST_V4L2_BUFFER_POOL (self->v4l2output->
-              pool), &buffer);
+          gst_v4l2_buffer_pool_process (GST_V4L2_BUFFER_POOL (self->
+              v4l2output->pool), &buffer);
       gst_buffer_unref (buffer);
     }
   }
@@ -848,9 +848,9 @@ gst_v4l2_video_enc_class_init (GstV4l2VideoEncClass * klass)
 
   parent_class = g_type_class_peek_parent (klass);
 
-  element_class = (GstElementClass *) klass;
-  gobject_class = (GObjectClass *) klass;
-  video_encoder_class = (GstVideoEncoderClass *) klass;
+  gobject_class = G_OBJECT_CLASS (klass);
+  element_class = GST_ELEMENT_CLASS (klass);
+  video_encoder_class = GST_VIDEO_ENCODER_CLASS (klass);
 
   GST_DEBUG_CATEGORY_INIT (gst_v4l2_video_enc_debug, "v4l2videoenc", 0,
       "V4L2 Video Encoder");

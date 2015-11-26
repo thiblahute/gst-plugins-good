@@ -38,26 +38,8 @@
 GST_DEBUG_CATEGORY_STATIC (gst_v4l2_h264_enc_debug);
 #define GST_CAT_DEFAULT gst_v4l2_h264_enc_debug
 
-enum
-{
-  PROP_0,
-  V4L2_STD_OBJECT_PROPS,
-};
-
 #define gst_v4l2_h264_enc_parent_class parent_class
 G_DEFINE_TYPE (GstV4l2H264Enc, gst_v4l2_h264_enc, GST_TYPE_V4L2_VIDEO_ENC);
-
-static void
-gst_v4l2_h264_enc_set_property (GObject * object,
-    guint prop_id, const GValue * value, GParamSpec * pspec)
-{
-}
-
-static void
-gst_v4l2_h264_enc_get_property (GObject * object,
-    guint prop_id, GValue * value, GParamSpec * pspec)
-{
-}
 
 static GstFlowReturn
 gst_v4l2_h264_enc_handle_frame (GstVideoEncoder * encoder,
@@ -108,15 +90,7 @@ gst_v4l2_h264_enc_class_init (GstV4l2H264EncClass * klass)
       "Codec/Encoder/Video",
       "Encode H.264 video streams via V4L2 API", "ayaka <ayaka@soulik.info>");
 
-  gobject_class->set_property =
-      GST_DEBUG_FUNCPTR (gst_v4l2_h264_enc_set_property);
-  gobject_class->get_property =
-      GST_DEBUG_FUNCPTR (gst_v4l2_h264_enc_get_property);
-  /* FIXME propose_allocation or not ? */
   baseclass->handle_frame = GST_DEBUG_FUNCPTR (gst_v4l2_h264_enc_handle_frame);
-
-  gst_v4l2_object_install_m2m_properties_helper (gobject_class);
-
 }
 
 /* Probing functions */
