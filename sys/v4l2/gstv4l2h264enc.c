@@ -92,14 +92,12 @@ gst_v4l2_h264_enc_class_init (GstV4l2H264EncClass * klass)
 {
   GstElementClass *element_class;
   GObjectClass *gobject_class;
-  GstV4l2VideoEncClass *v4l2_encoder_class;
   GstVideoEncoderClass *baseclass;
 
   parent_class = g_type_class_peek_parent (klass);
 
   element_class = (GstElementClass *) klass;
   gobject_class = (GObjectClass *) klass;
-  v4l2_encoder_class = GST_V4L2_VIDEO_ENC_CLASS (klass);
   baseclass = GST_VIDEO_ENCODER_CLASS (klass);
 
   GST_DEBUG_CATEGORY_INIT (gst_v4l2_h264_enc_debug, "v4l2h264enc", 0,
