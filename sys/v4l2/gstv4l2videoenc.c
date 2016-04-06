@@ -352,7 +352,7 @@ gst_v4l2_video_enc_finish (GstVideoEncoder * encoder)
 
   if (gst_v4l2_encoder_cmd (self->v4l2output, V4L2_ENC_CMD_STOP, 0)) {
     /* If the encoder stop command succeeded, just wait until processing is
-    * finished */
+     * finished */
     GST_OBJECT_LOCK (encoder->srcpad->task);
     GST_TASK_WAIT (encoder->srcpad->task);
     GST_OBJECT_UNLOCK (encoder->srcpad->task);
@@ -363,8 +363,8 @@ gst_v4l2_video_enc_finish (GstVideoEncoder * encoder)
     while (ret == GST_FLOW_OK) {
       buffer = gst_buffer_new ();
       ret =
-          gst_v4l2_buffer_pool_process (GST_V4L2_BUFFER_POOL (self->
-              v4l2output->pool), &buffer);
+          gst_v4l2_buffer_pool_process (GST_V4L2_BUFFER_POOL (self->v4l2output->
+              pool), &buffer);
       gst_buffer_unref (buffer);
     }
   }
@@ -524,7 +524,7 @@ gst_v4l2_video_enc_handle_frame (GstVideoEncoder * encoder,
     if (!gst_buffer_pool_is_active (pool)) {
       GstStructure *config = gst_buffer_pool_get_config (pool);
       gint min = self->v4l2output->min_buffers == 0 ? GST_V4L2_MIN_BUFFERS :
-              self->v4l2output->min_buffers;
+          self->v4l2output->min_buffers;
 
       gst_buffer_pool_config_set_params (config,
           self->input_state->caps, self->v4l2output->info.size, min, min);
@@ -586,9 +586,6 @@ gst_v4l2_video_enc_handle_frame (GstVideoEncoder * encoder,
     } else if (ret != GST_FLOW_OK) {
       goto process_failed;
     }
-
-    /* No need to keep input arround */
-    gst_buffer_replace (&frame->input_buffer, NULL);
   }
 
   gst_video_codec_frame_unref (frame);
@@ -900,7 +897,7 @@ gst_v4l2_video_enc_class_init (GstV4l2VideoEncClass * klass)
   video_encoder_class->decide_allocation =
       GST_DEBUG_FUNCPTR (gst_v4l2_video_enc_decide_allocation);
   video_encoder_class->propose_allocation =
-       GST_DEBUG_FUNCPTR (gst_v4l2_video_enc_propose_allocation);
+      GST_DEBUG_FUNCPTR (gst_v4l2_video_enc_propose_allocation);
   video_encoder_class->sink_query =
       GST_DEBUG_FUNCPTR (gst_v4l2_video_enc_sink_query);
   video_encoder_class->src_query =
