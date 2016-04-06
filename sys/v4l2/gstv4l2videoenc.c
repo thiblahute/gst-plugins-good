@@ -524,7 +524,7 @@ gst_v4l2_video_enc_handle_frame (GstVideoEncoder * encoder,
     if (!gst_buffer_pool_is_active (pool)) {
       GstStructure *config = gst_buffer_pool_get_config (pool);
       gint min = self->v4l2output->min_buffers == 0 ? GST_V4L2_MIN_BUFFERS :
-          self->v4l2output->min_buffers;
+              self->v4l2output->min_buffers;
 
       gst_buffer_pool_config_set_params (config,
           self->input_state->caps, self->v4l2output->info.size, min, min);
@@ -900,7 +900,7 @@ gst_v4l2_video_enc_class_init (GstV4l2VideoEncClass * klass)
   video_encoder_class->decide_allocation =
       GST_DEBUG_FUNCPTR (gst_v4l2_video_enc_decide_allocation);
   video_encoder_class->propose_allocation =
-      GST_DEBUG_FUNCPTR (gst_v4l2_video_enc_propose_allocation);
+       GST_DEBUG_FUNCPTR (gst_v4l2_video_enc_propose_allocation);
   video_encoder_class->sink_query =
       GST_DEBUG_FUNCPTR (gst_v4l2_video_enc_sink_query);
   video_encoder_class->src_query =
