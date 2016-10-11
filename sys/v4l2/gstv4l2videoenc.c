@@ -243,6 +243,7 @@ gst_v4l2_video_enc_set_format (GstVideoEncoder * encoder,
 {
   gboolean ret = TRUE;
   GstV4l2VideoEnc *self = GST_V4L2_VIDEO_ENC (encoder);
+  GstV4l2Error error = GST_V4L2_ERROR_INIT;
 
   GST_DEBUG_OBJECT (self, "Setting format: %" GST_PTR_FORMAT, state->caps);
 
@@ -257,7 +258,7 @@ gst_v4l2_video_enc_set_format (GstVideoEncoder * encoder,
     /* FIXME we probably need to do more work if pools are active */
   }
 
-  ret = gst_v4l2_object_set_format (self->v4l2output, state->caps);
+  ret = gst_v4l2_object_set_format (self->v4l2output, state->caps, &error);
 
   if (ret)
     self->input_state = gst_video_codec_state_ref (state);
@@ -491,6 +492,7 @@ gst_v4l2_video_enc_handle_frame (GstVideoEncoder * encoder,
 {
   GstV4l2VideoEnc *self = GST_V4L2_VIDEO_ENC (encoder);
   GstFlowReturn ret = GST_FLOW_OK;
+  GstV4l2Error error = GST_V4L2_ERROR_INIT;
 
   GST_DEBUG_OBJECT (self, "Handling frame %d", frame->system_frame_number);
 
@@ -500,7 +502,8 @@ gst_v4l2_video_enc_handle_frame (GstVideoEncoder * encoder,
   if (G_UNLIKELY (!GST_V4L2_IS_ACTIVE (self->v4l2output))) {
     if (!self->input_state)
       goto not_negotiated;
-    if (!gst_v4l2_object_set_format (self->v4l2output, self->input_state->caps))
+    if (!gst_v4l2_object_set_format (self->v4l2output, self->input_state->caps,
+            &error))
       goto not_negotiated;
   }
 
@@ -519,7 +522,7 @@ gst_v4l2_video_enc_handle_frame (GstVideoEncoder * encoder,
         "height", G_TYPE_INT, self->input_state->info.height, NULL);
 
     pool = GST_BUFFER_POOL (self->v4l2output->pool);
-    gst_v4l2_object_set_format (self->v4l2capture, outcaps);
+    gst_v4l2_object_set_format (self->v4l2capture, outcaps, &error);
 
     if (!gst_buffer_pool_is_active (pool)) {
       GstStructure *config = gst_buffer_pool_get_config (pool);
