@@ -258,7 +258,7 @@ gst_v4l2_encoder_subclass_init (gpointer g_class, gpointer data)
   gobject_class->get_property =
       GST_DEBUG_FUNCPTR (gst_v4l2_video_enc_get_property);
 
-  gst_v4l2_object_install_m2m_subclass_properties_helper (gobject_class);
+  gst_v4l2_object_install_m2m_properties_helper (gobject_class);
 
   g_free (cdata);
 }
