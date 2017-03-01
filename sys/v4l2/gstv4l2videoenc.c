@@ -347,32 +347,28 @@ gst_v4l2_video_enc_finish (GstVideoEncoder * encoder)
 
   GST_DEBUG_OBJECT (self, "Finishing encoding");
 
-  /* Keep queuing empty buffers until the processing thread has stopped,
-   * _pool_process() will return FLUSHING when that happened */
   GST_VIDEO_ENCODER_STREAM_UNLOCK (encoder);
-
   if (gst_v4l2_encoder_cmd (self->v4l2output, V4L2_ENC_CMD_STOP, 0)) {
+    GST_DEBUG_OBJECT (self, "Get encoder srcpad task");
+    GstTask *task = encoder->srcpad->task;
     /* If the encoder stop command succeeded, just wait until processing is
      * finished */
-    GST_OBJECT_LOCK (encoder->srcpad->task);
-    GST_TASK_WAIT (encoder->srcpad->task);
-    GST_OBJECT_UNLOCK (encoder->srcpad->task);
-    ret = GST_FLOW_FLUSHING;
-  } else {
-    /* otherwise keep queuing empty buffers until the processing thread has
-     * stopped, _pool_process() will return FLUSHING when that happened */
-    while (ret == GST_FLOW_OK) {
-      buffer = gst_buffer_new ();
-      ret =
-          gst_v4l2_buffer_pool_process (GST_V4L2_BUFFER_POOL (self->v4l2output->
-              pool), &buffer);
-      gst_buffer_unref (buffer);
+    GST_DEBUG_OBJECT (self, "Lock on encoder srcpad task");
+    GST_OBJECT_LOCK (task);
+    while (GST_TASK_STATE (task) == GST_TASK_STARTED) {
+      GST_DEBUG_OBJECT (self, "Waiting encoder srcpad task");
+      GST_TASK_WAIT (task);
     }
+
+    GST_DEBUG_OBJECT (self, "Unlock encoder srcpad task");
+    GST_OBJECT_UNLOCK (task);
+    ret = GST_FLOW_FLUSHING;
   }
 
   /* and ensure the processing thread has stopped in case another error
    * occured. */
   gst_v4l2_object_unlock (self->v4l2capture);
+  GST_DEBUG_OBJECT (self, "Stop encoder srcpad task");
   gst_pad_stop_task (encoder->srcpad);
   GST_VIDEO_ENCODER_STREAM_LOCK (encoder);
 
