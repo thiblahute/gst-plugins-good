@@ -274,19 +274,17 @@ gst_v4l2_video_enc_flush (GstVideoEncoder * encoder)
 {
   GstV4l2VideoEnc *self = GST_V4L2_VIDEO_ENC (encoder);
 
-  GST_DEBUG_OBJECT (self, "Flushing");
+  GST_DEBUG_OBJECT (self, "Flushed");
 
   /* Ensure the processing thread has stopped for the reverse playback
-   * iscount case */
+   * discount case */
   if (g_atomic_int_get (&self->processing)) {
     GST_VIDEO_ENCODER_STREAM_UNLOCK (encoder);
 
     gst_v4l2_object_unlock_stop (self->v4l2output);
     gst_v4l2_object_unlock_stop (self->v4l2capture);
     gst_pad_stop_task (encoder->srcpad);
-
-    GST_VIDEO_ENCODER_STREAM_UNLOCK (encoder);
-
+    GST_VIDEO_ENCODER_STREAM_LOCK (encoder);
   }
 
   self->output_flow = GST_FLOW_OK;
@@ -348,6 +346,7 @@ gst_v4l2_video_enc_finish (GstVideoEncoder * encoder)
   GST_DEBUG_OBJECT (self, "Finishing encoding");
 
   GST_VIDEO_ENCODER_STREAM_UNLOCK (encoder);
+
   if (gst_v4l2_encoder_cmd (self->v4l2output, V4L2_ENC_CMD_STOP, 0)) {
     GST_DEBUG_OBJECT (self, "Get encoder srcpad task");
     GstTask *task = encoder->srcpad->task;
@@ -815,6 +814,7 @@ gst_v4l2_video_enc_dispose (GObject * object)
 {
   GstV4l2VideoEnc *self = GST_V4L2_VIDEO_ENC (object);
 
+  GST_DEBUG_OBJECT (self, "Dispose");
   gst_caps_replace (&self->probed_sinkcaps, NULL);
   gst_caps_replace (&self->probed_srccaps, NULL);
 
@@ -826,6 +826,7 @@ gst_v4l2_video_enc_finalize (GObject * object)
 {
   GstV4l2VideoEnc *self = GST_V4L2_VIDEO_ENC (object);
 
+  GST_DEBUG_OBJECT (self, "Finalize");
   gst_v4l2_object_destroy (self->v4l2capture);
   gst_v4l2_object_destroy (self->v4l2output);
 
