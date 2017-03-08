@@ -26,5 +26,6 @@ if x11_dep.found()
                     xshm_dep, xfixes_dep, xdamage_dep],
     install : true,
     install_dir : plugins_install_dir,
+    components: component('ximage', dependencies: [x11_dep, xshm_dep, xfixes_dep, xdamage_dep])
   )
 endif

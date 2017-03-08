@@ -24,5 +24,6 @@ if have_oss
     include_directories : [configinc, libsinc],
     dependencies : [gstaudio_dep, gstbase_dep],
     install : true,
-    install_dir : plugins_install_dir)
+    install_dir : plugins_install_dir,
+    components: component('oss'))
 endif

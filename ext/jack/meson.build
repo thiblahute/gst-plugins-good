@@ -6,15 +6,16 @@ jack_sources = [
   'gstjackutil.c',
 ]
 
-libjack_dep = dependency('jack', version : '>= 1.9.7', required : false)
 
-if libjack_dep.found()
-  gstjack = library('gstjack',
-    jack_sources,
-    c_args : gst_plugins_good_args + ['-DHAVE_JACK_1_9_7'],
-    include_directories : [configinc, libsinc],
-    dependencies : [gst_dep, gstbase_dep, gstaudio_dep, libjack_dep],
-    install : true,
-    install_dir : plugins_install_dir,
-  )
-endif
+libjack_comp = component('jack')
+libaa_dep = dependency('jack', version : '>= 1.9.7', required : false, components: libjack_comp)
+
+gstjack = library('gstjack',
+  jack_sources,
+  c_args : gst_plugins_good_args + ['-DHAVE_JACK_1_9_7'],
+  include_directories : [configinc, libsinc],
+  dependencies : [gst_dep, gstbase_dep, gstaudio_dep, libjack_comp.dependencies()],
+  install : true,
+  install_dir : plugins_install_dir,
+  components: libjack_comp
+)

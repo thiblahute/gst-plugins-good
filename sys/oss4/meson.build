@@ -17,7 +17,9 @@ if have_oss4
     include_directories : [configinc, libsinc],
     dependencies : [gstaudio_dep, gstbase_dep],
     install : true,
-    install_dir : plugins_install_dir)
+    install_dir : plugins_install_dir,
+    components: component('oss4')
+  )
 else
   message('Not building Open Sound System 4 plugin, required headers not found.')
 endif

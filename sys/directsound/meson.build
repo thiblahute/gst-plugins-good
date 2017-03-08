@@ -12,5 +12,6 @@ if host_machine.system() == 'windows' and cc.has_header('dsound.h')
     include_directories : [configinc],
     dependencies : [gstaudio_dep] + directsoundsink_dep,
     install : true,
-    install_dir : plugins_install_dir)
+    install_dir : plugins_install_dir,
+    component('directsound', dependencies: directsoundsink_dep))
 endif

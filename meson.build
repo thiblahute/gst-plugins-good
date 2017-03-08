@@ -273,7 +273,7 @@ else
 endif
 
 presetdir = join_paths(get_option('datadir'), 'gstreamer-' + api_version, 'presets')
-
+plugins_component = component('plugins')
 subdir('gst')
 subdir('sys')
 subdir('ext')

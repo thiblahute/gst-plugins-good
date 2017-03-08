@@ -50,5 +50,6 @@ if cc.has_header('linux/videodev2.h') or cc.has_header('sys/videodev2.h') or cc.
     dependencies : [gstbase_dep, gstvideo_dep, gstallocators_dep, gudev_dep] + libv4l2_deps,
     install : true,
     install_dir : plugins_install_dir,
+    components: component('v4l2', dependencies: libv4l2_deps),
   )
 endif
