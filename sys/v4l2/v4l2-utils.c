@@ -218,7 +218,7 @@ struct v4l2_elements
 static const struct v4l2_elements elements[] = {
 /*  {
   gst_v4l2_video_enc_get_type, NULL, TRUE, "videoenc"},*/
-  {gst_v4l2_video_dec_get_type, gst_v4l2_is_video_dec, FALSE, "videodec"},
+  {gst_v4l2_video_dec_get_type, gst_v4l2_is_video_dec, FALSE, "dec"},
   {gst_v4l2_h264_enc_get_type, gst_v4l2_is_h264_enc, TRUE, "h264enc"},
 };
 
