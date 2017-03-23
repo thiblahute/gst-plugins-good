@@ -40,13 +40,6 @@ GST_DEBUG_CATEGORY_STATIC (gst_v4l2_video_dec_debug);
 
 static gboolean gst_v4l2_video_dec_flush (GstVideoDecoder * decoder);
 
-typedef struct
-{
-  gchar *device;
-  GstCaps *sink_caps;
-  GstCaps *src_caps;
-} GstV4l2VideoCData;
-
 enum
 {
   PROP_0,
