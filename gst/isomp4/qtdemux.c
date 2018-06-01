@@ -6899,10 +6899,13 @@ gst_qtdemux_process_adapter (GstQTDemux * demux, gboolean force)
             QTDEMUX_EXPOSE_UNLOCK (demux);
 
             demux->got_moov = TRUE;
-            demux->need_segment = TRUE;
-            gst_qtdemux_map_and_push_segments (demux, &demux->segment);
-            if (demux->exposed)
-              demux->need_segment = FALSE;
+
+            if (demux->fragmented) {
+              gst_qtdemux_check_send_pending_segment (demux);
+            } else {
+              // gst_event_replace (&demux->pending_newsegment, NULL);
+              gst_qtdemux_map_and_push_segments (demux, &demux->segment);
+            }
 
             if (demux->moov_node_compressed) {
               g_node_destroy (demux->moov_node_compressed);
