@@ -42,6 +42,7 @@
  */
 /**
  * SECTION:element-rtspsrc
+ * @title: rtspsrc
  *
  * Makes a connection to an RTSP server and read the data.
  * rtspsrc strictly follows RFC 2326 and therefore does not (yet) support
@@ -66,13 +67,12 @@
  * rtspsrc acts like a live source and will therefore only generate data in the
  * PLAYING state.
  *
- * <refsect2>
- * <title>Example launch line</title>
+ * ## Example launch line
  * |[
  * gst-launch-1.0 rtspsrc location=rtsp://some.server/url ! fakesink
  * ]| Establish a connection to an RTSP server and send the raw RTP packets to a
  * fakesink.
- * </refsect2>
+ *
  */
 
 #ifdef HAVE_CONFIG_H

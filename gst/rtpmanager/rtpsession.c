@@ -478,9 +478,8 @@ rtp_session_class_init (RTPSessionClass * klass)
    *
    * Get a GValue Array of all sources in the session.
    *
-   * <example>
-   * <title>Getting the #RTPSources of a session
-   * <programlisting>
+   * ## Getting the #RTPSources of a session
+   * |[
    * {
    *   GValueArray *arr;
    *   GValue *val;
@@ -496,8 +495,7 @@ rtp_session_class_init (RTPSessionClass * klass)
    *   }
    *   g_value_array_free (arr);
    * }
-   * </programlisting>
-   * </example>
+   * ]|
    */
   g_object_class_install_property (gobject_class, PROP_SOURCES,
       g_param_spec_boxed ("sources", "Sources",
