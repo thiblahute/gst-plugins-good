@@ -26,6 +26,7 @@ gst_req = '>= @0@.@1@.0'.format(gst_version_major, gst_version_minor)
 api_version = '1.0'
 
 plugins_install_dir = '@0@/gstreamer-1.0'.format(get_option('libdir'))
+plugins = []
 
 cc = meson.get_compiler('c')
 host_system = host_machine.system()
@@ -355,6 +356,7 @@ endif
 
 presetdir = join_paths(get_option('datadir'), 'gstreamer-' + api_version, 'presets')
 
+python3 = import('python').find_installation()
 pkgconfig = import('pkgconfig')
 plugins_pkgconfig_install_dir = join_paths(plugins_install_dir, 'pkgconfig')
 if get_option('default_library') == 'shared'
@@ -367,6 +369,12 @@ subdir('sys')
 subdir('ext')
 subdir('tests')
 subdir('pkgconfig')
+build_hotdoc = false
+hotdoc_p = find_program('hotdoc', required : false)
+if hotdoc_p.found()
+  build_hotdoc = true
+  subdir('docs')
+endif
 
 # xgettext is optional (on Windows for instance)
 if find_program('xgettext', required : get_option('nls')).found()
@@ -376,5 +384,4 @@ endif
 
 configure_file(output : 'config.h', configuration : cdata)
 
-python3 = import('python').find_installation()
 run_command(python3, '-c', 'import shutil; shutil.copy("hooks/pre-commit.hook", ".git/hooks/pre-commit")')
